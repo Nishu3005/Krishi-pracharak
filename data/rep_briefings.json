@@ -1,0 +1,43 @@
+{
+  "REP_0007": {
+    "generated_at": "2026-05-20T10:41:33.276179",
+    "briefing_text": "**REP_0007 Territory Briefing – Week of Jan 15**\n\nStart this week by visiting **Ratlam_T007** — it's been 38 days and this account needs face-to-face attention before engagement slips further. Simultaneously, prioritize restocking **Tilt 250 EC**, which will be out of stock in ~2 weeks; this is your highest-urgency inventory issue and a direct revenue risk. Don't overlook your 3 non-smartphone growers in this territory — they can only be reached through personal visits, so batch these calls efficiently with your Ratlam visit if geographically feasible. Flag **Actara 25 WG** and **Topik 15 WP** for restocking within the next 7–8 weeks to avoid downstream stockouts.",
+    "priority_actions": [
+      {
+        "type": "restock_alert",
+        "sku": "Tilt 250 EC",
+        "tehsil": "territory-wide",
+        "weeks_until_oos": 2,
+        "avg_stock": 79.2,
+        "trend_slope": -32.7,
+        "rank": 1
+      },
+      {
+        "type": "visit_gap",
+        "tehsil": "Ratlam_T007",
+        "days_since_visit": 38,
+        "rank": 2
+      },
+      {
+        "type": "restock_alert",
+        "sku": "Actara 25 WG",
+        "tehsil": "territory-wide",
+        "weeks_until_oos": 7,
+        "avg_stock": 44.2,
+        "trend_slope": -6.1,
+        "rank": 3
+      },
+      {
+        "type": "restock_alert",
+        "sku": "Topik 15 WP",
+        "tehsil": "territory-wide",
+        "weeks_until_oos": 8,
+        "avg_stock": 423.5,
+        "trend_slope": -6.0,
+        "rank": 4
+      }
+    ],
+    "offline_growers_count": 3,
+    "territory_id": "TER_0007"
+  }
+}

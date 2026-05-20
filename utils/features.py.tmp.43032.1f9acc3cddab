@@ -1,0 +1,143 @@
+from datetime import date, timedelta
+import pandas as pd
+from utils.data_loader import (
+    load_growers, load_whatsapp, load_retailers,
+    load_inventory, load_visits,
+)
+from utils.crop_calendar import get_timing
+from utils.product_catalog import get_campaign_product
+
+
+def build_grower_features(reference_date: date) -> pd.DataFrame:
+    growers = load_growers().copy()
+    whatsapp = load_whatsapp()
+    retailers = load_retailers()
+    inventory = load_inventory()
+    visits = load_visits()
+
+    growers = _join_whatsapp(growers, whatsapp)
+    growers = _join_territory(growers, retailers)
+    growers = _join_inventory_risk(growers, inventory, retailers, reference_date)
+    growers = _join_visit_recency(growers, visits, reference_date)
+    growers = _add_timing(growers, reference_date)
+
+    return growers
+
+
+def _join_whatsapp(growers: pd.DataFrame, whatsapp: pd.DataFrame) -> pd.DataFrame:
+    wa = whatsapp[["grower_id", "delivered_status", "opened_status", "clicked_status"]].copy()
+    wa = wa.rename(columns={
+        "delivered_status": "wa_delivered",
+        "opened_status": "wa_opened",
+        "clicked_status": "wa_clicked",
+    })
+    wa["has_wa_history"] = True
+    merged = growers.merge(wa, on="grower_id", how="left")
+    for col in ["wa_delivered", "wa_opened", "wa_clicked", "has_wa_history"]:
+        merged[col] = merged[col].fillna(False).infer_objects(copy=False).astype(bool)
+    return merged
+
+
+def _join_territory(growers: pd.DataFrame, retailers: pd.DataFrame) -> pd.DataFrame:
+    tehsil_to_territory = (
+        retailers[["tehsil", "territory_id"]]
+        .drop_duplicates("tehsil")
+    )
+    merged = growers.merge(tehsil_to_territory, on="tehsil", how="left")
+    # fallback: try district-level if tehsil mapping failed
+    missing = merged["territory_id"].isna()
+    if missing.any():
+        district_map = (
+            retailers[["district", "territory_id"]]
+            .drop_duplicates("district")
+            .rename(columns={"territory_id": "territory_id_district"})
+        )
+        merged = merged.merge(district_map, on="district", how="left")
+        merged.loc[missing, "territory_id"] = merged.loc[missing, "territory_id_district"]
+        merged = merged.drop(columns=["territory_id_district"])
+    return merged
+
+
+def _join_inventory_risk(
+    growers: pd.DataFrame,
+    inventory: pd.DataFrame,
+    retailers: pd.DataFrame,
+    reference_date: date,
+) -> pd.DataFrame:
+    ref_ts = pd.Timestamp(reference_date)
+    window_start = ref_ts - pd.Timedelta(weeks=4)
+
+    recent_inv = inventory[
+        (inventory["week_end_date"] >= window_start) &
+        (inventory["week_end_date"] <= ref_ts)
+    ].copy()
+
+    retailer_territory = retailers[["retailer_id", "territory_id"]].drop_duplicates()
+    recent_inv = recent_inv.merge(retailer_territory, on="retailer_id", how="left")
+
+    territory_sku_risk = (
+        recent_inv.groupby(["territory_id", "sku_name"])
+        .agg(avg_qty=("sku_qty", "mean"), oos_weeks=("sku_qty", lambda x: (x == 0).sum()))
+        .reset_index()
+    )
+    territory_sku_risk["inventory_blocked"] = (
+        (territory_sku_risk["avg_qty"] < 10) | (territory_sku_risk["oos_weeks"] >= 2)
+    )
+
+    def check_oos(row):
+        product = get_campaign_product(row.get("crop", ""))
+        if not product:
+            return False
+        territory = row.get("territory_id")
+        if pd.isna(territory):
+            return False
+        match = territory_sku_risk[
+            (territory_sku_risk["territory_id"] == territory) &
+            (territory_sku_risk["sku_name"] == product)
+        ]
+        if match.empty:
+            return False
+        return bool(match.iloc[0]["inventory_blocked"])
+
+    def get_crop(row):
+        cal = row.get("grower_crop_calendar")
+        if isinstance(cal, dict):
+            return cal.get("crop", "")
+        return ""
+
+    growers = growers.copy()
+    growers["crop"] = growers.apply(get_crop, axis=1)
+    growers["oos_risk_product"] = growers.apply(check_oos, axis=1)
+    return growers
+
+
+def _join_visit_recency(
+    growers: pd.DataFrame,
+    visits: pd.DataFrame,
+    reference_date: date,
+) -> pd.DataFrame:
+    ref_ts = pd.Timestamp(reference_date)
+    cutoff = ref_ts - pd.Timedelta(days=30)
+
+    recent = visits[visits["visit_date"] >= cutoff][["territory_id"]].drop_duplicates()
+    recent["rep_visited_recently"] = True
+
+    growers = growers.merge(recent, on="territory_id", how="left")
+    growers["rep_visited_recently"] = growers["rep_visited_recently"].fillna(False).infer_objects(copy=False).astype(bool)
+    return growers
+
+
+def _add_timing(growers: pd.DataFrame, reference_date: date) -> pd.DataFrame:
+    def compute_timing(row):
+        cal = row.get("grower_crop_calendar")
+        result = get_timing(cal, reference_date)
+        return pd.Series({
+            "timing_mode": result["mode"],
+            "timing_label": result["label"],
+            "days_to_next_stage": result["days_until"],
+            "timing_urgency": result["urgency"],
+            "timing_quality_flag": result["quality_flag"],
+        })
+
+    timing_cols = growers.apply(compute_timing, axis=1)
+    return pd.concat([growers, timing_cols], axis=1)

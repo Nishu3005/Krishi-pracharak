@@ -1,0 +1,18 @@
+{
+  "generated_at": "2026-05-20T10:45:13.060584",
+  "variants": {
+    "SEG_001": {
+      "language": "Kannada",
+      "persona": "awareness",
+      "whatsapp": null,
+      "sms": "ಅಕ್ತಾರ 25 WG ಬಳಸಿ ಚಿಕ್ಕಿ, ಜ್ಯಾಸಿಡ್‌ಗಳಿಂದ ರಕ್ಷಿಸಿ. ಬೀಜದ ಮೇಲೆ ಸಿಂಪಡಿಸಿ. ಗುಣಮಟ್ಟದ ಫಸಲಿಗೆ ಇಂದೇ ಅರ್ಜಿ ಮಾಡಿ.",
+      "ivr_script": "ನಮಸ್ಕಾರ ರೈತರೇ! ಈ ಹೊತ್ತು ನಿಮ್ಮ ಗ್ರಾಮ್ಯ ಪೆರುಗಳು ಸುಲಿದಾಗಿದೆ. ಆದರೆ ಅಫೀದ, ಬೆಳ್ಳೆ ನೊಣ ಮತ್ತು ಜೆಸಿಡ್‌ಗಳು ನಿಮ್ಮ ಬೆಳೆಯನ್ನು ಹಾಳುಮಾಡಬಹುದು. ಇದಕ್ಕೆ ಅಕ್ತಾರ ಆಗಿದೆ ಸೊಂಟ ಪರಿಹಾರ. ಇದು ಮಾಟಿಯ ಮೂಲಕ ಅಥವಾ ಸುರಿತೆ ಮೂಲಕ ಸೇವಿಸಿದರೆ ತಕ್ಷಣ ಸೀಸೆ ಹೋಗುತ್ತದೆ. ನಿಮ್ಮ ಹತ್ತಿರದ ಸಿಂಜೆಂಟಾ ಖಾಕಿ ಅಂಗಡಿಯಲ್ಲಿ ಅಕ್ತಾರ ಕೇಳಿ.",
+      "poster_image_url": null,
+      "poster_prompt_used": "Agricultural campaign poster for chickpea farmers in Karnataka, India. Product: Actara 25 WG. Growth stage: pod_formation in 26 days. Mood: informative, trustworthy. Include text overlay in Kannada language. Style: simple, high contrast, suitable for low-literacy rural audience. Show the chickpea plant and product packaging. Clean layout, bold text, no complex graphics.",
+      "models_used": {
+        "text": "anthropic/claude-haiku-4.5",
+        "image": "google/gemini-2.5-flash-image"
+      }
+    }
+  }
+}
