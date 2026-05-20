@@ -1,4 +1,3 @@
-import base64
 import sys
 from pathlib import Path
 
@@ -34,78 +33,18 @@ def _load_reps_insights():
     return get_reps_insights()
 
 
-# ── Image helper ──────────────────────────────────────────────────────────────
-IMG_DIR = Path(__file__).parent / "images"
-
-
-def _img_tag(filename: str, height: str = "130px") -> str:
-    """Return an <img> tag with base64 data if the file exists, else a grey placeholder."""
-    for ext in ("", ".jpg", ".jpeg", ".png", ".webp"):
-        path = IMG_DIR / (filename + ext if not filename.endswith(ext) else filename)
-        if path.exists():
-            mime = "image/jpeg" if path.suffix in (".jpg", ".jpeg") else f"image/{path.suffix.lstrip('.')}"
-            b64 = base64.b64encode(path.read_bytes()).decode()
-            return (
-                f'<img src="data:{mime};base64,{b64}" '
-                f'style="width:100%;height:{height};object-fit:cover;display:block;" />'
-            )
-    # placeholder shown when image file is not yet placed
-    return (
-        f'<div style="width:100%;height:{height};background:#e8e4dc;display:flex;'
-        f'align-items:center;justify-content:center;color:#9a9488;font-size:0.75rem;">image here</div>'
-    )
-
 
 # ── Hero ──────────────────────────────────────────────────────────────────────
 st.markdown(
     """
 <div style="background:linear-gradient(135deg,#1a3d28 0%,#2f7d4c 55%,#1a3d28 100%);border-radius:24px;padding:2.5rem 2.5rem 2rem;margin-bottom:2rem;box-shadow:0 20px 60px rgba(47,125,76,0.25);">
-  <span style="background:rgba(255,255,255,0.15);color:#d4edda;border-radius:999px;padding:0.25rem 0.85rem;font-size:0.73rem;font-weight:600;letter-spacing:0.06em;border:1px solid rgba(255,255,255,0.2);">SYNGENTA × IITM HACKATHON 2026</span>
-  <h1 style="color:#ffffff;font-size:2.8rem;font-weight:700;margin:0.65rem 0 0.5rem;letter-spacing:-0.03em;line-height:1.1;">🌾 Krishi Pracharak</h1>
+  <h1 style="color:#ffffff;font-size:2.8rem;font-weight:700;margin:0 0 0.5rem;letter-spacing:-0.03em;line-height:1.1;">🌾 Krishi Pracharak</h1>
   <p style="color:rgba(255,255,255,0.80);font-size:1.05rem;margin:0;max-width:620px;line-height:1.65;">From 6,000 growers and a product catalog to ranked field actions, multilingual campaign content, and rep briefings — fully AI-driven, in one operational flow.</p>
 </div>
 """,
     unsafe_allow_html=True,
 )
 
-# ── Page cards ────────────────────────────────────────────────────────────────
-st.markdown("#### Where to go")
-
-CARDS = [
-    (
-        "card_campaign",
-        "#b8d9c2", "linear-gradient(145deg,#f7fdf9,#edf7f1)",
-        "🌱 Campaign Builder",
-        "Score growers → OOS gate → segment → generate WhatsApp, SMS, IVR, and poster in the grower's language. Download the full plan as JSON.",
-    ),
-    (
-        "card_insights",
-        "#c8c0e0", "linear-gradient(145deg,#faf8ff,#f3eeff)",
-        "📊 Receptivity Insights",
-        "Understand the score — signal contributions, distribution, baseline vs. top-quartile open-rate lift, state and farm-size breakdowns.",
-    ),
-    (
-        "card_briefing",
-        "#f0c8b0", "linear-gradient(145deg,#fffaf7,#fff3eb)",
-        "🗺️ Rep Briefing",
-        "Pick a rep, get their ranked weekly actions — restock alerts, visit gaps older than 21 days, and every offline grower in their territory.",
-    ),
-]
-
-c1, c2, c3 = st.columns(3)
-for col, (fname, border, bg, title, desc) in zip([c1, c2, c3], CARDS):
-    col.markdown(
-        f"""<div style="border:1px solid {border};border-radius:18px;overflow:hidden;background:{bg};">
-  {_img_tag(fname, "150px")}
-  <div style="padding:1.1rem 1.2rem 1.3rem;">
-    <div style="font-weight:700;font-size:1rem;color:#1d2a22;margin-bottom:0.35rem;">{title}</div>
-    <div style="color:#4f6157;font-size:0.81rem;line-height:1.6;">{desc}</div>
-  </div>
-</div>""",
-        unsafe_allow_html=True,
-    )
-
-st.markdown("<br>", unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # SECTION A — Campaign Intelligence
@@ -115,7 +54,7 @@ _CHART_LAYOUT = dict(
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
     margin=dict(l=10, r=10, t=30, b=10),
-    font=dict(color="#1d2a22", family="Space Grotesk"),
+    font=dict(color="#1a2520", family="Space Grotesk"),
 )
 
 
@@ -337,96 +276,5 @@ with tab_demo:
         fig_farm.update_layout(**_CHART_LAYOUT)
         st.plotly_chart(fig_farm, use_container_width=True)
 
-st.markdown("<br>", unsafe_allow_html=True)
-
-# ─────────────────────────────────────────────────────────────────────────────
-# SECTION C — Field Force Coverage
-# ─────────────────────────────────────────────────────────────────────────────
-
-st.markdown("### 🗺️ Field Force Coverage")
-st.caption("Sales rep distribution, territory mapping, and tehsil coverage depth across states.")
-st.divider()
-
-ri = _load_reps_insights()
-
-# ── Top metric row ─────────────────────────────────────────────────────────
-r1, r2, r3, r4 = st.columns(4)
-r1.metric("Total Reps", f"{ri['total_reps']:,}")
-r2.metric("Territories", f"{ri['total_territories']:,}")
-r3.metric("Districts", f"{ri['total_districts']:,}")
-r4.metric("Total Tehsils Covered", f"{ri['total_tehsils']:,}")
 
 st.markdown("<br>", unsafe_allow_html=True)
-
-col_ff_l, col_ff_r = st.columns(2)
-
-with col_ff_l:
-    rps = ri["reps_per_state"]
-    rps_df = (
-        pd.DataFrame({"state": list(rps.keys()), "reps": list(rps.values())})
-        .sort_values("reps")
-    )
-    fig_rps = px.bar(
-        rps_df,
-        x="reps",
-        y="state",
-        orientation="h",
-        title="Reps per State",
-        color_discrete_sequence=["#2f7d4c"],
-    )
-    fig_rps.update_layout(**_CHART_LAYOUT)
-    fig_rps.update_traces(marker_color="#2f7d4c")
-    st.plotly_chart(fig_rps, use_container_width=True)
-
-with col_ff_r:
-    avg_teh = ri["avg_tehsils_per_rep_by_state"]
-    avg_teh_df = (
-        pd.DataFrame({"state": list(avg_teh.keys()), "avg_tehsils": list(avg_teh.values())})
-        .sort_values("avg_tehsils")
-    )
-    fig_avg_teh = px.bar(
-        avg_teh_df,
-        x="avg_tehsils",
-        y="state",
-        orientation="h",
-        title="Avg Tehsils per Rep",
-        color_discrete_sequence=["#88bb97"],
-    )
-    fig_avg_teh.update_layout(**_CHART_LAYOUT)
-    fig_avg_teh.update_traces(marker_color="#88bb97")
-    st.plotly_chart(fig_avg_teh, use_container_width=True)
-
-# ── Grouped bar — reps vs territories by state ────────────────────────────
-all_ff_states = sorted(ri["reps_per_state"].keys())
-reps_vals = [ri["reps_per_state"].get(s, 0) for s in all_ff_states]
-terr_vals = [ri["territories_per_state"].get(s, 0) for s in all_ff_states]
-
-fig_grouped = go.Figure()
-fig_grouped.add_trace(
-    go.Bar(
-        name="Reps",
-        x=all_ff_states,
-        y=reps_vals,
-        marker_color="#2f7d4c",
-    )
-)
-fig_grouped.add_trace(
-    go.Bar(
-        name="Territories",
-        x=all_ff_states,
-        y=terr_vals,
-        marker_color="#c07a2b",
-    )
-)
-fig_grouped.update_layout(
-    barmode="group",
-    title="Reps vs Territories by State",
-    xaxis_title="State",
-    yaxis_title="Count",
-    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-    **_CHART_LAYOUT,
-)
-st.plotly_chart(fig_grouped, use_container_width=True)
-
-st.markdown("<br>", unsafe_allow_html=True)
-st.caption("Krishi Pracharak · Syngenta × IITM Hackathon 2026")

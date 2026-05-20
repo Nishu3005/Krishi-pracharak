@@ -82,7 +82,6 @@ p  { color: var(--ink-soft); line-height: 1.65; }
   box-shadow: 0 0 0 2px var(--accent-soft), var(--shadow-sm) !important;
 }
 
-.stButton > button[data-testid="baseButton-primary"],
 .stButton > button[kind="primary"] {
   background: linear-gradient(135deg, #2f7d4c 0%, #1e5e38 100%) !important;
   border-color: #1e5e38 !important;
@@ -90,7 +89,6 @@ p  { color: var(--ink-soft); line-height: 1.65; }
   font-weight: 600 !important;
 }
 
-.stButton > button[data-testid="baseButton-primary"]:hover,
 .stButton > button[kind="primary"]:hover {
   background: linear-gradient(135deg, #369958 0%, #2f7d4c 100%) !important;
   box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow-md) !important;
@@ -258,9 +256,25 @@ p  { color: var(--ink-soft); line-height: 1.65; }
 }
 
 /* ── Info / Warning / Success / Error boxes ──────────────────────────────────── */
-[data-testid="stAlertContainer"] {
+[data-testid="stAlertContainer"][data-baseweb="notification"][kind="info"] {
+  background: #eef5ff !important;
+  border-left: 4px solid #3b82f6 !important;
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0 !important;
-  font-size: 0.88rem !important;
+  color: #1e3a5f !important;
+}
+
+[data-testid="stAlertContainer"][data-baseweb="notification"][kind="success"] {
+  background: var(--accent-pale) !important;
+  border-left: 4px solid var(--accent) !important;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0 !important;
+  color: var(--ink) !important;
+}
+
+[data-testid="stAlertContainer"][data-baseweb="notification"][kind="warning"] {
+  background: var(--signal-soft) !important;
+  border-left: 4px solid var(--signal) !important;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0 !important;
+  color: #4a2e0a !important;
 }
 
 /* ── Divider ─────────────────────────────────────────────────────────────────── */
@@ -298,7 +312,7 @@ section[data-testid="stSidebar"] > div:first-child {
 
 /* Brand header */
 [data-testid="stSidebarNav"]::before {
-  content: "🌾 Krishi Pracharak";
+  content: "🌾  Krishi Pracharak";
   display: block;
   font-family: "Source Serif 4", serif;
   font-size: 1.05rem;
@@ -364,6 +378,18 @@ section[data-testid="stSidebar"] .stButton > button:hover {
   transform: none !important;
 }
 
+/* Footer */
+section[data-testid="stSidebar"]::after {
+  content: "Syngenta × IITM · 2026";
+  display: block;
+  position: absolute;
+  bottom: 1.2rem;
+  left: 0; right: 0;
+  text-align: center;
+  font-size: 0.67rem;
+  color: rgba(255,255,255,0.18);
+  letter-spacing: 0.07em;
+}
 
 /* ── Hero component ──────────────────────────────────────────────────────────── */
 .hero-wrap {
@@ -565,12 +591,6 @@ section[data-testid="stSidebar"] .stButton > button:hover {
   display: block; width: 3px; border-radius: 2px;
   background: linear-gradient(to top, rgba(47,125,76,0.45), rgba(61,153,96,0.85));
   flex-shrink: 0;
-  animation: wave-pulse 1.2s ease-in-out infinite;
-}
-
-@keyframes wave-pulse {
-  0%, 100% { opacity: 0.45; transform: scaleY(0.6); }
-  50%       { opacity: 1;    transform: scaleY(1);   }
 }
 .kp-ivr-script {
   font-style: italic;

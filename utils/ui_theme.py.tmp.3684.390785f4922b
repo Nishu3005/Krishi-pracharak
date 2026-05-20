@@ -258,9 +258,25 @@ p  { color: var(--ink-soft); line-height: 1.65; }
 }
 
 /* ── Info / Warning / Success / Error boxes ──────────────────────────────────── */
-[data-testid="stAlertContainer"] {
+[data-testid="stAlertContainer"][data-baseweb="notification"][kind="info"] {
+  background: #eef5ff !important;
+  border-left: 4px solid #3b82f6 !important;
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0 !important;
-  font-size: 0.88rem !important;
+  color: #1e3a5f !important;
+}
+
+[data-testid="stAlertContainer"][data-baseweb="notification"][kind="success"] {
+  background: var(--accent-pale) !important;
+  border-left: 4px solid var(--accent) !important;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0 !important;
+  color: var(--ink) !important;
+}
+
+[data-testid="stAlertContainer"][data-baseweb="notification"][kind="warning"] {
+  background: var(--signal-soft) !important;
+  border-left: 4px solid var(--signal) !important;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0 !important;
+  color: #4a2e0a !important;
 }
 
 /* ── Divider ─────────────────────────────────────────────────────────────────── */

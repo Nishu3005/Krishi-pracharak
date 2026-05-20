@@ -186,28 +186,7 @@ def _generate_segment_content(seg: dict, promoter_desc: str | None = None, campa
             ivr_text = _retailer_line
 
     poster_prompt = _build_poster_prompt(crop, product, state, language, stage_ctx, persona, promoter_desc)
-    poster_raw_url, poster_status = _call_with_retry(call_image, IMAGE_MODEL, poster_prompt)
-
-    # Save poster to file so the JSON stays small and images persist across reruns
-    poster_file_path: str | None = None
-    poster_image_url: str | None = None
-    if poster_raw_url:
-        if poster_raw_url.startswith("data:image/"):
-            try:
-                poster_dir = Path(DATA_DIR) / "posters"
-                poster_dir.mkdir(parents=True, exist_ok=True)
-                _, b64data = poster_raw_url.split(",", 1)
-                img_bytes = base64.b64decode(b64data)
-                safe_name = re.sub(r"[^\w-]", "_", campaign_name)[:25]
-                seg_id = seg.get("segment_id", "seg")
-                ts = datetime.utcnow().strftime("%H%M%S")
-                fpath = poster_dir / f"{safe_name}_{seg_id}_{ts}.png"
-                fpath.write_bytes(img_bytes)
-                poster_file_path = str(fpath.resolve())
-            except Exception:
-                poster_image_url = poster_raw_url  # keep as data URI on save failure
-        else:
-            poster_image_url = poster_raw_url  # plain URL — store as-is
+    poster_url, poster_status = _call_with_retry(call_image, IMAGE_MODEL, poster_prompt)
 
     return {
         "channel":          channel,
@@ -219,9 +198,8 @@ def _generate_segment_content(seg: dict, promoter_desc: str | None = None, campa
         "sms_meta":         _text_meta(sms_text, sms_status) if sms_status != "skipped" else None,
         "ivr_script":       ivr_text,
         "ivr_meta":         _text_meta(ivr_text, ivr_status),
-        "poster_image_url":  poster_image_url,
-        "poster_file_path":  poster_file_path,
-        "poster_status":     poster_status,
+        "poster_image_url": poster_url,
+        "poster_status":    poster_status,
         "poster_prompt_used": poster_prompt,
         "poster_generated_at": datetime.utcnow().isoformat(),
         "models_used": {

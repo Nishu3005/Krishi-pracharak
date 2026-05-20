@@ -45,12 +45,12 @@ app.py  (Streamlit home — grower network + field force analytics)
 
 ### 1 — Campaign Builder
 
-- Sidebar lists all active campaigns (CMP_RABI25_001, CMP_RABI25_002, etc.) and a **Start New Campaign** entry.
-- Clicking a campaign opens a hero banner with crop, date, and territory info, followed by three horizontal tabs:
-  - **Overview** — segment breakdown, grower counts, channel split, and AI targeting rationale.
-  - **Content Generation** — generates WhatsApp, SMS, IVR, and poster variants per segment via Haiku + Gemini.
+- Sidebar lists all active campaigns by name and a **＋ New Campaign** entry.
+- Clicking a campaign opens a hero banner, then three horizontal tabs:
+  - **Overview** — Gantt timeline, India geo map of active states, live weather cards (Open-Meteo, no key), rationale, and segments table.
+  - **Content Generation** — generates WhatsApp, SMS, IVR, and poster variants per segment. Each asset shows status badge (success / fallback), character count, and model used. One automatic retry on API failure before falling back to a safe placeholder.
   - **Receptivity** — score distribution, per-signal contribution, state and farm-size breakdowns, channel split.
-- New Campaign flow: date, crop, and state filters → **Build Targeting Plan** scores all 6 000+ growers, applies OOS gate, routes channels, clusters micro-segments, and writes `data/targeting_plan.json`.
+- **New Campaign form**: campaign name, objective, crop, state, date window (start → end), channel mix multi-select, and optional budget. These are stored top-level in the campaign JSON, not buried in `source_meta`.
 
 ### 2 — Rep Briefing
 
@@ -108,13 +108,17 @@ cp .env.example .env
 
 See [.env.example](.env.example) for a description of every variable.
 
-### 3. Place the dataset
+### 3. Weather integration (no setup required)
+
+Weather data is fetched via [Open-Meteo](https://open-meteo.com) — a free, no-API-key weather service. The `utils/weather_client.py` module has a 5-second timeout and returns `None` on any failure; the UI renders gracefully when weather is unavailable. No additional configuration is needed.
+
+### 4. Place the dataset
 
 The `Syngenta_IITM_Hackathon_2026_dataset/` folder (8 CSV files + analysis modules) must sit at the repo root. This matches the default `DATA_DIR` value. Do not rename the folder unless you also update `DATA_DIR` in `.env`.
 
 > **Data confidentiality** — the Syngenta dataset is strictly confidential and intended solely for use in the Syngenta IITM Hackathon 2026. Do not share, publish, or distribute it in any form.
 
-### 4. Run
+### 5. Run
 
 ```bash
 streamlit run app.py
@@ -138,11 +142,14 @@ syngenta/
 │   └── rep_agent.py                # OOS slope + visit gap + rep-assist actions
 ├── utils/
 │   ├── ai_client.py                # Token Router singleton client
+│   ├── campaign_store.py           # JSON persistence for campaigns (save, attach, load)
 │   ├── crop_calendar.py            # Stage-based and season-phase timing logic
 │   ├── data_loader.py              # @st.cache_data loaders for all 8 CSVs
 │   ├── features.py                 # Joins all signals into a flat grower feature frame
 │   ├── product_catalog.py          # Hardcoded 12-SKU catalog + campaign product mapping
 │   ├── receptivity_score.py        # 7-signal heuristic scorer
+│   ├── targeting_logic.py          # Shared product selection + OOS block lookup
+│   ├── weather_client.py           # Open-Meteo weather fetch (free, no key, hard fallback)
 │   └── ui_theme.py                 # apply_theme() and render_hero() shared by all pages
 ├── Syngenta_IITM_Hackathon_2026_dataset/
 │   ├── growers_analysis.py         # Deep grower insights (demographics, crop, language, device)
@@ -165,6 +172,9 @@ syngenta/
 - **Channel routing.** Non-smartphone growers (≈26% of the dataset) are never sent WhatsApp messages. They are routed to `rep_assist` and surfaced in the rep briefing.
 - **Minimum segment size (20 growers).** Prevents micro-fragments that would generate content for 1–2 people. Sub-threshold clusters are merged into the nearest (crop, channel) peer.
 - **Receptivity insights integrated into campaigns.** Rather than a separate page, receptivity charts live inside each campaign's detail view — so evidence is co-located with the targeting decision it validates.
+- **Weather context without an API key.** Open-Meteo is called at runtime; `utils/weather_client.py` enforces a 5-second timeout and returns `None` on any failure. The UI renders cards that say "No data" rather than throwing an error.
+- **Campaign identity as a first-class field.** `campaign_name`, `campaign_objective`, `date_window`, and `channel_mix` are stored top-level in the campaign JSON — not buried in `source_meta` — so the sidebar, hero banner, and overview tab can read them directly.
+- **Content generation with retry + metadata.** Each format (WhatsApp, SMS, IVR, poster) is wrapped in a single-retry call. The variant JSON includes `status`, `char_count`, `generated_at`, and `model` per format so the UI can show evidence of quality without re-running.
 
 ---
 

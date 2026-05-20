@@ -235,9 +235,7 @@ and remind them about the {offline_count} offline growers who can only be reache
         if top["type"] == "restock_alert":
             first_action = f"restock {top.get('sku')} (~{top.get('weeks_until_oos')} weeks to OOS)"
         elif top["type"] == "visit_gap":
-            _d = top.get("days_since_visit", 0)
-            _dl = "never visited" if _d >= 999 else f"{_d} days since visit"
-            first_action = f"visit {top.get('tehsil')} ({_dl})"
+            first_action = f"visit {top.get('tehsil')} ({top.get('days_since_visit')} days since visit)"
         else:
             first_action = f"run assisted campaign for {top.get('crop')} ({top.get('grower_count')} growers)"
         return (

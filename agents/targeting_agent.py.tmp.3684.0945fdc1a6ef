@@ -80,10 +80,6 @@ def run_targeting(
     plan = {
         "generated_at": datetime.utcnow().isoformat(),
         "reference_date": reference_date.isoformat(),
-        "campaign_name": campaign_name,
-        "campaign_objective": campaign_objective,
-        "date_window": date_window,
-        "channel_mix": channel_mix,
         "rationale": rationale,
         "total_growers_scored": total_scored,
         "total_eligible_pre_oos": len(eligible),
@@ -187,28 +183,14 @@ def _merge_small_segments(segments: list) -> list:
 
 
 def _find_merge_target(small: dict, candidates: list) -> dict | None:
-    # Keep merges context-safe to avoid mixing growers across different realities.
-    # 1) Strict match: same crop/state/channel/product/language.
+    # prefer same crop + same channel
     for c in candidates:
-        if (
-            c["crop"] == small["crop"]
-            and c["state"] == small["state"]
-            and c["channel"] == small["channel"]
-            and c["product"] == small["product"]
-            and c["language"] == small["language"]
-        ):
+        if c["crop"] == small["crop"] and c["channel"] == small["channel"]:
             return c
-
-    # 2) Relax slightly: same crop/state/channel.
+    # fallback: same crop
     for c in candidates:
-        if (
-            c["crop"] == small["crop"]
-            and c["state"] == small["state"]
-            and c["channel"] == small["channel"]
-        ):
+        if c["crop"] == small["crop"]:
             return c
-
-    # 3) No safe target: keep as its own segment.
     return None
 
 

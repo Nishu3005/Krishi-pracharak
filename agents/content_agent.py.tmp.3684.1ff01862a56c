@@ -1,10 +1,7 @@
-import base64
 import json
 import os
-import re
 import time
 from datetime import datetime
-from pathlib import Path
 from typing import Optional
 
 from utils.ai_client import call_text, call_image, call_vision, TEXT_MODEL_FAST, TEXT_MODEL_HEAVY, IMAGE_MODEL
@@ -69,13 +66,11 @@ def describe_promoter(image_b64: str) -> str:
     )
 
 
-def run_content_generation_streaming(
-    targeting_plan: dict,
-    promoter_image_b64: str | None = None,
-):
-    """Generator: yields (seg_id, seg, content) one segment at a time as each is generated."""
+def run_content_generation(targeting_plan: dict,
+                           promoter_image_b64: str | None = None) -> dict:
     os.makedirs(DATA_DIR, exist_ok=True)
 
+    # Derive a text description of the promoter once (saves API calls per segment)
     promoter_desc: str | None = None
     if promoter_image_b64:
         try:
@@ -83,24 +78,14 @@ def run_content_generation_streaming(
         except Exception:
             promoter_desc = None
 
-    campaign_name = targeting_plan.get("campaign_name", "campaign") or "campaign"
-    for seg in targeting_plan.get("segments", []):
+    variants = {}
+    segments = targeting_plan.get("segments", [])
+
+    for seg in segments:
         if not seg.get("inventory_ok", True):
             continue
         seg_id = seg["segment_id"]
-        content = _generate_segment_content(seg, promoter_desc, campaign_name=campaign_name)
-        yield seg_id, seg, content
-
-
-def run_content_generation(targeting_plan: dict,
-                           promoter_image_b64: str | None = None) -> dict:
-    os.makedirs(DATA_DIR, exist_ok=True)
-
-    variants = {}
-    for seg_id, _seg, content in run_content_generation_streaming(
-        targeting_plan, promoter_image_b64=promoter_image_b64
-    ):
-        variants[seg_id] = content
+        variants[seg_id] = _generate_segment_content(seg, promoter_desc)
 
     output = {
         "generated_at": datetime.utcnow().isoformat(),
@@ -137,7 +122,7 @@ def _text_meta(text: Optional[str], status: str) -> dict:
     }
 
 
-def _generate_segment_content(seg: dict, promoter_desc: str | None = None, campaign_name: str = "campaign") -> dict:
+def _generate_segment_content(seg: dict, promoter_desc: str | None = None) -> dict:
     language  = seg.get("language", "Hindi")
     persona   = seg.get("persona", "awareness")
     product   = seg.get("product", "")
@@ -161,19 +146,24 @@ def _generate_segment_content(seg: dict, promoter_desc: str | None = None, campa
         wa_text, wa_status = _call_with_retry(
             _gen_whatsapp, context_block, tone_note, lang_note, language
         )
-        _retailer_line = _FALLBACK_RETAILER.get(language, _FALLBACK_RETAILER_EN)
         if wa_status == "fallback":
-            wa_text = _retailer_line
+            wa_text = (
+                f"{language} message unavailable. "
+                "Ask your nearest Syngenta retailer for guidance."
+            )
         sms_text, sms_status = _call_with_retry(
             _gen_sms, context_block, tone_note, lang_note, language
         )
         if sms_status == "fallback":
-            sms_text = _retailer_line
+            sms_text = f"{language} SMS unavailable. Contact nearest Syngenta retailer."
         ivr_text, ivr_status = _call_with_retry(
             _gen_ivr, context_block, tone_note, lang_note, language
         )
         if ivr_status == "fallback":
-            ivr_text = _retailer_line
+            ivr_text = (
+                f"{language} IVR script unavailable. "
+                "Please ask for this product at your nearest Syngenta retailer."
+            )
     else:
         # rep_assist channel — WhatsApp/SMS not sent; produce field visit script only
         wa_text, sms_text = None, None
@@ -181,33 +171,14 @@ def _generate_segment_content(seg: dict, promoter_desc: str | None = None, campa
         ivr_text, ivr_status = _call_with_retry(
             _gen_rep_assist_script, context_block, tone_note, lang_note, language
         )
-        _retailer_line = _FALLBACK_RETAILER.get(language, _FALLBACK_RETAILER_EN)
         if ivr_status == "fallback":
-            ivr_text = _retailer_line
+            ivr_text = (
+                f"{language} rep-assist script unavailable. "
+                "Explain crop-stage risk clearly and recommend the product today."
+            )
 
     poster_prompt = _build_poster_prompt(crop, product, state, language, stage_ctx, persona, promoter_desc)
-    poster_raw_url, poster_status = _call_with_retry(call_image, IMAGE_MODEL, poster_prompt)
-
-    # Save poster to file so the JSON stays small and images persist across reruns
-    poster_file_path: str | None = None
-    poster_image_url: str | None = None
-    if poster_raw_url:
-        if poster_raw_url.startswith("data:image/"):
-            try:
-                poster_dir = Path(DATA_DIR) / "posters"
-                poster_dir.mkdir(parents=True, exist_ok=True)
-                _, b64data = poster_raw_url.split(",", 1)
-                img_bytes = base64.b64decode(b64data)
-                safe_name = re.sub(r"[^\w-]", "_", campaign_name)[:25]
-                seg_id = seg.get("segment_id", "seg")
-                ts = datetime.utcnow().strftime("%H%M%S")
-                fpath = poster_dir / f"{safe_name}_{seg_id}_{ts}.png"
-                fpath.write_bytes(img_bytes)
-                poster_file_path = str(fpath.resolve())
-            except Exception:
-                poster_image_url = poster_raw_url  # keep as data URI on save failure
-        else:
-            poster_image_url = poster_raw_url  # plain URL — store as-is
+    poster_url, poster_status = _call_with_retry(call_image, IMAGE_MODEL, poster_prompt)
 
     return {
         "channel":          channel,
@@ -219,9 +190,8 @@ def _generate_segment_content(seg: dict, promoter_desc: str | None = None, campa
         "sms_meta":         _text_meta(sms_text, sms_status) if sms_status != "skipped" else None,
         "ivr_script":       ivr_text,
         "ivr_meta":         _text_meta(ivr_text, ivr_status),
-        "poster_image_url":  poster_image_url,
-        "poster_file_path":  poster_file_path,
-        "poster_status":     poster_status,
+        "poster_image_url": poster_url,
+        "poster_status":    poster_status,
         "poster_prompt_used": poster_prompt,
         "poster_generated_at": datetime.utcnow().isoformat(),
         "models_used": {

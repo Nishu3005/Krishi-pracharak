@@ -1,11 +1,15 @@
-from datetime import date, timedelta
+from datetime import date
 import pandas as pd
 from utils.data_loader import (
     load_growers, load_whatsapp, load_retailers,
-    load_inventory, load_visits,
+    load_inventory, load_visits, load_pos,
 )
 from utils.crop_calendar import get_timing
-from utils.product_catalog import get_campaign_product
+from utils.targeting_logic import (
+    build_inventory_block_lookup,
+    get_pos_ranked_skus,
+    select_campaign_product,
+)
 
 
 def build_grower_features(reference_date: date) -> pd.DataFrame:
@@ -14,10 +18,11 @@ def build_grower_features(reference_date: date) -> pd.DataFrame:
     retailers = load_retailers()
     inventory = load_inventory()
     visits = load_visits()
+    pos = load_pos()
 
     growers = _join_whatsapp(growers, whatsapp)
     growers = _join_territory(growers, retailers)
-    growers = _join_inventory_risk(growers, inventory, retailers, reference_date)
+    growers = _join_inventory_risk(growers, inventory, retailers, pos, reference_date)
     growers = _join_visit_recency(growers, visits, reference_date)
     growers = _add_timing(growers, reference_date)
 
@@ -62,51 +67,38 @@ def _join_inventory_risk(
     growers: pd.DataFrame,
     inventory: pd.DataFrame,
     retailers: pd.DataFrame,
+    pos: pd.DataFrame,
     reference_date: date,
 ) -> pd.DataFrame:
-    ref_ts = pd.Timestamp(reference_date)
-    window_start = ref_ts - pd.Timedelta(weeks=4)
-
-    recent_inv = inventory[
-        (inventory["week_end_date"] >= window_start) &
-        (inventory["week_end_date"] <= ref_ts)
-    ].copy()
-
-    retailer_territory = retailers[["retailer_id", "territory_id"]].drop_duplicates()
-    recent_inv = recent_inv.merge(retailer_territory, on="retailer_id", how="left")
-
-    territory_sku_risk = (
-        recent_inv.groupby(["territory_id", "sku_name"])
-        .agg(avg_qty=("sku_qty", "mean"), oos_weeks=("sku_qty", lambda x: (x == 0).sum()))
-        .reset_index()
-    )
-    territory_sku_risk["inventory_blocked"] = (
-        (territory_sku_risk["avg_qty"] < 10) | (territory_sku_risk["oos_weeks"] >= 2)
-    )
-
-    def check_oos(row):
-        product = get_campaign_product(row.get("crop", ""))
-        if not product:
-            return False
-        territory = row.get("territory_id")
-        if pd.isna(territory):
-            return False
-        match = territory_sku_risk[
-            (territory_sku_risk["territory_id"] == territory) &
-            (territory_sku_risk["sku_name"] == product)
-        ]
-        if match.empty:
-            return False
-        return bool(match.iloc[0]["inventory_blocked"])
-
     def get_crop(row):
         cal = row.get("grower_crop_calendar")
         if isinstance(cal, dict):
             return cal.get("crop", "")
         return ""
 
+    pos_ranked_skus = get_pos_ranked_skus(pos)
+    inventory_lookup = build_inventory_block_lookup(inventory, retailers, reference_date)
+
+    def choose_product(crop):
+        product, reason = select_campaign_product(crop, pos_ranked_skus)
+        return pd.Series(
+            {
+                "campaign_product": product,
+                "product_selection_reason": reason,
+            }
+        )
+
+    def check_oos(row):
+        territory = row.get("territory_id")
+        product = row.get("campaign_product")
+        if pd.isna(territory) or not product:
+            return False
+        return bool(inventory_lookup.get((str(territory), str(product)), False))
+
     growers = growers.copy()
     growers["crop"] = growers.apply(get_crop, axis=1)
+    product_cols = growers["crop"].apply(choose_product)
+    growers = pd.concat([growers, product_cols], axis=1)
     growers["oos_risk_product"] = growers.apply(check_oos, axis=1)
     return growers
 

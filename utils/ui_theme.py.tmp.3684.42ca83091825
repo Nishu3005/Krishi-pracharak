@@ -82,7 +82,6 @@ p  { color: var(--ink-soft); line-height: 1.65; }
   box-shadow: 0 0 0 2px var(--accent-soft), var(--shadow-sm) !important;
 }
 
-.stButton > button[data-testid="baseButton-primary"],
 .stButton > button[kind="primary"] {
   background: linear-gradient(135deg, #2f7d4c 0%, #1e5e38 100%) !important;
   border-color: #1e5e38 !important;
@@ -90,7 +89,6 @@ p  { color: var(--ink-soft); line-height: 1.65; }
   font-weight: 600 !important;
 }
 
-.stButton > button[data-testid="baseButton-primary"]:hover,
 .stButton > button[kind="primary"]:hover {
   background: linear-gradient(135deg, #369958 0%, #2f7d4c 100%) !important;
   box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow-md) !important;
@@ -258,9 +256,25 @@ p  { color: var(--ink-soft); line-height: 1.65; }
 }
 
 /* ── Info / Warning / Success / Error boxes ──────────────────────────────────── */
-[data-testid="stAlertContainer"] {
+[data-testid="stAlertContainer"][data-baseweb="notification"][kind="info"] {
+  background: #eef5ff !important;
+  border-left: 4px solid #3b82f6 !important;
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0 !important;
-  font-size: 0.88rem !important;
+  color: #1e3a5f !important;
+}
+
+[data-testid="stAlertContainer"][data-baseweb="notification"][kind="success"] {
+  background: var(--accent-pale) !important;
+  border-left: 4px solid var(--accent) !important;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0 !important;
+  color: var(--ink) !important;
+}
+
+[data-testid="stAlertContainer"][data-baseweb="notification"][kind="warning"] {
+  background: var(--signal-soft) !important;
+  border-left: 4px solid var(--signal) !important;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0 !important;
+  color: #4a2e0a !important;
 }
 
 /* ── Divider ─────────────────────────────────────────────────────────────────── */

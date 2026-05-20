@@ -1,14 +1,777 @@
 {
-  "generated_at": "2026-05-20T10:45:13.060584",
+  "generated_at": "2026-05-20T17:55:13.651682",
+  "total_segments": 25,
   "variants": {
     "SEG_001": {
-      "language": "Kannada",
-      "persona": "awareness",
+      "channel": "rep_assist",
+      "language": "Hindi",
+      "persona": "pre_stage_alert",
       "whatsapp": null,
-      "sms": "ಅಕ್ತಾರ 25 WG ಬಳಸಿ ಚಿಕ್ಕಿ, ಜ್ಯಾಸಿಡ್‌ಗಳಿಂದ ರಕ್ಷಿಸಿ. ಬೀಜದ ಮೇಲೆ ಸಿಂಪಡಿಸಿ. ಗುಣಮಟ್ಟದ ಫಸಲಿಗೆ ಇಂದೇ ಅರ್ಜಿ ಮಾಡಿ.",
-      "ivr_script": "ನಮಸ್ಕಾರ ರೈತರೇ! ಈ ಹೊತ್ತು ನಿಮ್ಮ ಗ್ರಾಮ್ಯ ಪೆರುಗಳು ಸುಲಿದಾಗಿದೆ. ಆದರೆ ಅಫೀದ, ಬೆಳ್ಳೆ ನೊಣ ಮತ್ತು ಜೆಸಿಡ್‌ಗಳು ನಿಮ್ಮ ಬೆಳೆಯನ್ನು ಹಾಳುಮಾಡಬಹುದು. ಇದಕ್ಕೆ ಅಕ್ತಾರ ಆಗಿದೆ ಸೊಂಟ ಪರಿಹಾರ. ಇದು ಮಾಟಿಯ ಮೂಲಕ ಅಥವಾ ಸುರಿತೆ ಮೂಲಕ ಸೇವಿಸಿದರೆ ತಕ್ಷಣ ಸೀಸೆ ಹೋಗುತ್ತದೆ. ನಿಮ್ಮ ಹತ್ತಿರದ ಸಿಂಜೆಂಟಾ ಖಾಕಿ ಅಂಗಡಿಯಲ್ಲಿ ಅಕ್ತಾರ ಕೇಳಿ.",
+      "whatsapp_meta": null,
+      "sms": null,
+      "sms_meta": null,
+      "ivr_script": "भाई, सुनो! तुम्हारा गेहूँ अभी बिल्कुल सही समय पर है। लेकिन देख, जंगली जई और घास के खरपतवार अभी 2-3 पत्ती पर हैं - यही सही समय है उन्हें मारने का। टॉपिक 15 डब्ल्यूपी स्प्रे कर दो आज ही, नहीं तो ये खरपतवार तुम्हारी फसल खा जाएँगे। बस आज ही दुकान से दवा ले आ, ठीक है?",
+      "ivr_meta": {
+        "status": "success",
+        "char_count": 263,
+        "generated_at": "2026-05-20T17:51:31.958830",
+        "model": "anthropic/claude-haiku-4.5"
+      },
       "poster_image_url": null,
-      "poster_prompt_used": "Agricultural campaign poster for chickpea farmers in Karnataka, India. Product: Actara 25 WG. Growth stage: pod_formation in 26 days. Mood: informative, trustworthy. Include text overlay in Kannada language. Style: simple, high contrast, suitable for low-literacy rural audience. Show the chickpea plant and product packaging. Clean layout, bold text, no complex graphics.",
+      "poster_file_path": null,
+      "poster_status": "success",
+      "poster_prompt_used": "Agricultural campaign poster for wheat farmers in Bihar, India. Product: Topik 15 WP. Growth stage: tillering in 0 days. Mood: urgent, time-sensitive. Feature this person prominently as a brand ambassador in the foreground: A young man, approximately late teens to early twenties, with a clean casual appearance and minimal facial hair, presenting a calm and neutral expression. Include text overlay in Hindi language. Style: simple, high contrast, suitable for low-literacy rural audience. Show the wheat plant and product packaging. Clean layout, bold text, no complex graphics.",
+      "poster_generated_at": "2026-05-20T17:51:31.958845",
+      "models_used": {
+        "text": "anthropic/claude-haiku-4.5",
+        "image": "google/gemini-2.5-flash-image"
+      }
+    },
+    "SEG_003": {
+      "channel": "whatsapp",
+      "language": "Hindi",
+      "persona": "pre_stage_alert",
+      "whatsapp": "गेहूं की बालियों का समय आ गया है। अभी जंगली जई और घास निकल रही है? Topik 15 WP से आज ही छिड़काव करें। कल देर हो जाएगी। अपने पास के दुकानदार से संपर्क करें या 9876543210 पर कॉल करें।",
+      "whatsapp_meta": {
+        "status": "success",
+        "char_count": 181,
+        "generated_at": "2026-05-20T17:51:41.802919",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "sms": "आपके गेहूं में जंगली जई आ रही है। अभी Topik 15 WP का छिड़काव करें। देरी मत करें, फसल बचाएं।",
+      "sms_meta": {
+        "status": "success",
+        "char_count": 91,
+        "generated_at": "2026-05-20T17:51:41.802926",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "ivr_script": "नमस्ते भैया! गेहूँ की बुवाई का समय आ गया है। सुनिए, अभी आपके खेत में जंगली जई और घास-फूस निकलने लगे हैं। ये खरपतवार आपकी फसल को खराब कर देंगे। इसलिए अभी ही काम करें। टॉपिक 15 डब्ल्यूपी स्प्रे करें। ये खरपतवार को तुरंत मार देता है। आपकी गेहूँ सुरक्षित रहेगी। अपने नजदीकी सिंजेंटा दुकान से टॉपिक माँगें। आज ही कर लें।",
+      "ivr_meta": {
+        "status": "success",
+        "char_count": 315,
+        "generated_at": "2026-05-20T17:51:41.802929",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "poster_image_url": null,
+      "poster_file_path": null,
+      "poster_status": "success",
+      "poster_prompt_used": "Agricultural campaign poster for wheat farmers in Bihar, India. Product: Topik 15 WP. Growth stage: tillering in 0 days. Mood: urgent, time-sensitive. Feature this person prominently as a brand ambassador in the foreground: A young man, approximately late teens to early twenties, with a clean casual appearance and minimal facial hair, presenting a calm and neutral expression. Include text overlay in Hindi language. Style: simple, high contrast, suitable for low-literacy rural audience. Show the wheat plant and product packaging. Clean layout, bold text, no complex graphics.",
+      "poster_generated_at": "2026-05-20T17:51:41.802936",
+      "models_used": {
+        "text": "anthropic/claude-haiku-4.5",
+        "image": "google/gemini-2.5-flash-image"
+      }
+    },
+    "SEG_004": {
+      "channel": "rep_assist",
+      "language": "Gujarati",
+      "persona": "pre_stage_alert",
+      "whatsapp": null,
+      "whatsapp_meta": null,
+      "sms": null,
+      "sms_meta": null,
+      "ivr_script": "ગણતરી શરૂ થવાનું છે અને જંગલી જવારો વધી રહ્યાં છે। આ સમયે કાર્યવાહી ન કરીએ તો ફસલને મોટું નુકસાન થશે। ટોપિક 15 WP છાંટો – તે જંગલી જવારો અને ઘાસ જેવા નીણાંને સંપૂર્ણ નષ્ટ કરે છે। વીણું 2-3 પાંદડાની અવસ્થામાં છાંટવું જોઈએ. આજે જ તમારા ખેતમાં જવાબર કરી દો.",
+      "ivr_meta": {
+        "status": "success",
+        "char_count": 254,
+        "generated_at": "2026-05-20T17:51:48.046460",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "poster_image_url": null,
+      "poster_file_path": null,
+      "poster_status": "success",
+      "poster_prompt_used": "Agricultural campaign poster for wheat farmers in Gujarat, India. Product: Topik 15 WP. Growth stage: tillering in 0 days. Mood: urgent, time-sensitive. Feature this person prominently as a brand ambassador in the foreground: A young man, approximately late teens to early twenties, with a clean casual appearance and minimal facial hair, presenting a calm and neutral expression. Include text overlay in Gujarati language. Style: simple, high contrast, suitable for low-literacy rural audience. Show the wheat plant and product packaging. Clean layout, bold text, no complex graphics.",
+      "poster_generated_at": "2026-05-20T17:51:48.046470",
+      "models_used": {
+        "text": "anthropic/claude-haiku-4.5",
+        "image": "google/gemini-2.5-flash-image"
+      }
+    },
+    "SEG_006": {
+      "channel": "whatsapp",
+      "language": "Gujarati",
+      "persona": "pre_stage_alert",
+      "whatsapp": "ગુંડો આવતા દિવસોમાં તમારી ગોધુમને નુકસાન કરશે। Topik 15 WP હવે છંટકાવો અને ગુંડો નિયંત્રણ કરો। તમારા આજીવિકા બચાવો આજે જ। રિટેલરને ફોન કરો હમણાં.",
+      "whatsapp_meta": {
+        "status": "success",
+        "char_count": 145,
+        "generated_at": "2026-05-20T17:52:00.056102",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "sms": "ટોપિક 15 WP વડે જંગલી જવારા નિયંત્રણ કરો. તિલેરિંગ શરૂ થતાં પહેલાં છણાવ કરો. આજે જ સ્પ્રે કરો!",
+      "sms_meta": {
+        "status": "success",
+        "char_count": 94,
+        "generated_at": "2026-05-20T17:52:00.056109",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "ivr_script": "નમસ્તે ખેડૂત ભાઈ! ગણતરીના દિવસો છે તમારા ગહુંમાં કલ્લો નીકળવાનો. આ સમયે જંગલી જવારો અને ઘાસના નીણાં તમારી પાક માટે મોટો જોખમ છે. આજે જ તોપિક ૧૫ વીપી છંટકાવ કરો અને તમારા ગહુંને બચાવો. તોપિક ૧૫ વીપી તમારા નજીકના સિનજેન્ટા વેપારીને પૂછો!",
+      "ivr_meta": {
+        "status": "success",
+        "char_count": 235,
+        "generated_at": "2026-05-20T17:52:00.056112",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "poster_image_url": null,
+      "poster_file_path": null,
+      "poster_status": "success",
+      "poster_prompt_used": "Agricultural campaign poster for wheat farmers in Gujarat, India. Product: Topik 15 WP. Growth stage: tillering in 0 days. Mood: urgent, time-sensitive. Feature this person prominently as a brand ambassador in the foreground: A young man, approximately late teens to early twenties, with a clean casual appearance and minimal facial hair, presenting a calm and neutral expression. Include text overlay in Gujarati language. Style: simple, high contrast, suitable for low-literacy rural audience. Show the wheat plant and product packaging. Clean layout, bold text, no complex graphics.",
+      "poster_generated_at": "2026-05-20T17:52:00.056120",
+      "models_used": {
+        "text": "anthropic/claude-haiku-4.5",
+        "image": "google/gemini-2.5-flash-image"
+      }
+    },
+    "SEG_007": {
+      "channel": "rep_assist",
+      "language": "Hindi",
+      "persona": "pre_stage_alert",
+      "whatsapp": null,
+      "whatsapp_meta": null,
+      "sms": null,
+      "sms_meta": null,
+      "ivr_script": "भाई, सुनो! अभी गेहूँ में जंगली जई और घास निकल रही है। ये अभी 2-3 पत्ती की स्टेज में है। अगर अभी स्प्रे नहीं किया तो फसल खराब हो जाएगी। टॉपिक 15 डब्ल्यूपी बिल्कुल सही दवा है इसके लिए। तुरंत आज ही नर्सरी से दवा ला लो और कल सुबह स्प्रे कर दो। ठीक है?",
+      "ivr_meta": {
+        "status": "success",
+        "char_count": 247,
+        "generated_at": "2026-05-20T17:52:04.963042",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "poster_image_url": null,
+      "poster_file_path": null,
+      "poster_status": "success",
+      "poster_prompt_used": "Agricultural campaign poster for wheat farmers in Haryana, India. Product: Topik 15 WP. Growth stage: tillering in 0 days. Mood: urgent, time-sensitive. Feature this person prominently as a brand ambassador in the foreground: A young man, approximately late teens to early twenties, with a clean casual appearance and minimal facial hair, presenting a calm and neutral expression. Include text overlay in Hindi language. Style: simple, high contrast, suitable for low-literacy rural audience. Show the wheat plant and product packaging. Clean layout, bold text, no complex graphics.",
+      "poster_generated_at": "2026-05-20T17:52:04.963052",
+      "models_used": {
+        "text": "anthropic/claude-haiku-4.5",
+        "image": "google/gemini-2.5-flash-image"
+      }
+    },
+    "SEG_008": {
+      "channel": "whatsapp",
+      "language": "Hindi",
+      "persona": "hot_lead",
+      "whatsapp": "गेहूँ में जंगली जई और घास-फूस से बचाव के लिए Topik 15 WP अभी लगवा दो। 2-3 पत्ती वाले खरपतवार पर सबसे कारगर। अपने पास के डीलर से आज ही खरीद लो। 📞",
+      "whatsapp_meta": {
+        "status": "success",
+        "char_count": 144,
+        "generated_at": "2026-05-20T17:52:14.462481",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "sms": "टॉपिक 15 WP से अभी जंगली जई खत्म करें। अपने पास के दुकान से आज ही खरीदें। बेहतर फसल के लिए अभी ऑर्डर करें।",
+      "sms_meta": {
+        "status": "success",
+        "char_count": 106,
+        "generated_at": "2026-05-20T17:52:14.462488",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "ivr_script": "नमस्ते भाई! गेहूँ की बुवाई का समय है और जंगली जई जैसी घास वाली खरपतवार आपकी फसल को नुकसान पहुँचा सकती हैं। अभी ही कार्रवाई करें! \n\nTopik 15 WP आपका सबसे अच्छा समाधान है। खरपतवार के 2-3 पत्ते आते ही इसका छिड़काव करें और अपनी गेहूँ की फसल को बचाएँ। \n\nतुरंत अपने नजदीकी Syngenta खुदरा विक्रेता से Topik 15 WP माँगें। आज ही खरीदें!",
+      "ivr_meta": {
+        "status": "success",
+        "char_count": 327,
+        "generated_at": "2026-05-20T17:52:14.462492",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "poster_image_url": null,
+      "poster_file_path": null,
+      "poster_status": "success",
+      "poster_prompt_used": "Agricultural campaign poster for wheat farmers in Haryana, India. Product: Topik 15 WP. Growth stage: tillering in 0 days. Mood: informative, trustworthy. Feature this person prominently as a brand ambassador in the foreground: A young man, approximately late teens to early twenties, with a clean casual appearance and minimal facial hair, presenting a calm and neutral expression. Include text overlay in Hindi language. Style: simple, high contrast, suitable for low-literacy rural audience. Show the wheat plant and product packaging. Clean layout, bold text, no complex graphics.",
+      "poster_generated_at": "2026-05-20T17:52:14.462498",
+      "models_used": {
+        "text": "anthropic/claude-haiku-4.5",
+        "image": "google/gemini-2.5-flash-image"
+      }
+    },
+    "SEG_009": {
+      "channel": "whatsapp",
+      "language": "Hindi",
+      "persona": "pre_stage_alert",
+      "whatsapp": "गेहूं में जंगली जई आ गई? अभी ही Topik 15 WP का छिड़काव करो। 2-3 पत्ती वाले खरपतवार पर सबसे असरदार है। देर मत करो, आज ही अपने डीलर से संपर्क करो। 9876543210 पर कॉल कर।",
+      "whatsapp_meta": {
+        "status": "success",
+        "char_count": 166,
+        "generated_at": "2026-05-20T17:52:24.791546",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "sms": "गेहूं में जंगली जई आ गई? अभी Topik 15 WP डालें। खरपतवार के 2-3 पत्ते निकले हों तो आज ही स्प्रे करें। नुकसान से बचाएं अपनी फसल।",
+      "sms_meta": {
+        "status": "success",
+        "char_count": 126,
+        "generated_at": "2026-05-20T17:52:24.791553",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "ivr_script": "नमस्ते भाई! गेहूँ की बुवाई का समय आ गया है। सुनिए, अभी जंगली जई और घास जैसी खरपतवार आपकी फसल को नुकसान पहुँचा सकती हैं। इसी समय काम करना बहुत जरूरी है। Topik 15 WP आपका सबसे अच्छा समाधान है। यह खरपतवार को पूरी तरह खत्म कर देता है। अपने नजदीकी Syngenta डीलर से Topik 15 WP माँगिए। अभी ही आर्डर दीजिए, देर न करिए!",
+      "ivr_meta": {
+        "status": "success",
+        "char_count": 311,
+        "generated_at": "2026-05-20T17:52:24.791556",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "poster_image_url": null,
+      "poster_file_path": null,
+      "poster_status": "success",
+      "poster_prompt_used": "Agricultural campaign poster for wheat farmers in Haryana, India. Product: Topik 15 WP. Growth stage: tillering in 0 days. Mood: urgent, time-sensitive. Feature this person prominently as a brand ambassador in the foreground: A young man, approximately late teens to early twenties, with a clean casual appearance and minimal facial hair, presenting a calm and neutral expression. Include text overlay in Hindi language. Style: simple, high contrast, suitable for low-literacy rural audience. Show the wheat plant and product packaging. Clean layout, bold text, no complex graphics.",
+      "poster_generated_at": "2026-05-20T17:52:24.791562",
+      "models_used": {
+        "text": "anthropic/claude-haiku-4.5",
+        "image": "google/gemini-2.5-flash-image"
+      }
+    },
+    "SEG_010": {
+      "channel": "rep_assist",
+      "language": "Kannada",
+      "persona": "pre_stage_alert",
+      "whatsapp": null,
+      "whatsapp_meta": null,
+      "sms": null,
+      "sms_meta": null,
+      "ivr_script": "ನಿಮ್ಮ ಗೋಧಿ ಸುಮಾರು ತಿಲ್ಲರಿಂಗ್ ಹಂತಕ್ಕೆ ಬರಲಿದೆ. ಈಗ ಕಾಡು ಓಟ್ ಮತ್ತು ಹುಲ್ಲಿನ ಕಳೆಗಳನ್ನು ನಿಯಂತ್ರಿಸುವುದು ಅತ್ಯಂತ ಜರುರಿ. ಟೋಪಿಕ್ 15 ಡಬ್ಲ್ಯುಪಿ ಬಳಸಿ ಕಳೆಗಳ 2-3 ಎಲೆ ಹಂತದಲ್ಲಿ ಸಿಂಪರಿಸಿ. ಈ ಮುಹೂರ್ತವನ್ನು ಕಳೆದುಕೊಳ್ಳಬೇಡಿ. ಇಂದೇ ಔಷಧ ಖರೀದಿಸಲು ನೀವು ನಿರ್ಧಾರ ತೆಗೆದುಕೊಳ್ಳುತ್ತೀರಾ?",
+      "ivr_meta": {
+        "status": "success",
+        "char_count": 249,
+        "generated_at": "2026-05-20T17:52:32.277803",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "poster_image_url": null,
+      "poster_file_path": null,
+      "poster_status": "success",
+      "poster_prompt_used": "Agricultural campaign poster for wheat farmers in Karnataka, India. Product: Topik 15 WP. Growth stage: tillering in 0 days. Mood: urgent, time-sensitive. Feature this person prominently as a brand ambassador in the foreground: A young man, approximately late teens to early twenties, with a clean casual appearance and minimal facial hair, presenting a calm and neutral expression. Include text overlay in Kannada language. Style: simple, high contrast, suitable for low-literacy rural audience. Show the wheat plant and product packaging. Clean layout, bold text, no complex graphics.",
+      "poster_generated_at": "2026-05-20T17:52:32.277826",
+      "models_used": {
+        "text": "anthropic/claude-haiku-4.5",
+        "image": "google/gemini-2.5-flash-image"
+      }
+    },
+    "SEG_012": {
+      "channel": "whatsapp",
+      "language": "Kannada",
+      "persona": "pre_stage_alert",
+      "whatsapp": "ಗೋದಿ ಬೆಳೆಯ ತಿಲ್ಲರ್ ಹಂತದಲ್ಲಿ ಕಾಡು ಓಟ್ ನಿಯಂತ್ರಣಕ್ಕೆ ಟಾಪಿಕ್ 15 WP ಈಗಲೇ ಸಿಂಪರೆ. ಕೊಳೆ ಹುಲ್ಲುಗಳ 2-3 ಎಲೆ ಹಂತದಲ್ಲಿ ಸಿಂಪಿ ಬೆಳೆ ರಕ್ಷಿಸಿ. ಜೀವಾಂತರ ಪಡೆಯಲು ಆಜ್ಞೆ ಮಾಡಿ.",
+      "whatsapp_meta": {
+        "status": "success",
+        "char_count": 153,
+        "generated_at": "2026-05-20T17:52:49.077997",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "sms": "ಟೋಪಿಕ್ 15 WP ಸ್ಪ್ರೇ ಮಾಡಿ ಈಗಲೇ! ಕಾಗೆ ಹುಲ್ಲು ನಿಯಂತ್ರಣಕ್ಕೆ ಸೂಕ್ತ ಸಮಯ. ಬೆಳೆ ಸುರಕ್ಷಿತ ಮಾಡಿ. ನೆರೆಯ ಅಂಗಡಿಗೆ ಸಂಪರ್ಕಿಸಿ.",
+      "sms_meta": {
+        "status": "success",
+        "char_count": 111,
+        "generated_at": "2026-05-20T17:52:49.078024",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "ivr_script": "ನಮಸ್ತೆ ರೈತರೇ, ಈ ಸಮಯ ಗೋಧಿ ಬೆಳೆಯ ನಿರ್ಣಾಯಕ ಹಂತ. ಕಾಡು ಓಟ್ ಮತ್ತು ಹುಲ್ಲುಗಳ ದಾಳಿ ನಿಮ್ಮ ಇಳುವರಿಯನ್ನು ಹಾಳುಮಾಡುತ್ತಿದೆ. ಈಗಲೇ ಕ್ರಮ ತೆಗೆದುಕೊಳ್ಳುವುದು ಬಹಳ ಮುಖ್ಯ. ಟೋಪಿಕ್ 15 ಡಬ್ಲ್ಯುಪಿ ಹರಿದಾಸದ 2-3 ಎಲೆ ಹಂತದಲ್ಲಿ ಸಿಂಪಡಿಸಿ ಈ ಸಮಸ್ಯೆಯನ್ನು ನಿಯಂತ್ರಿಸಿ. ನಿಮ್ಮ ಬೆಳೆಯನ್ನು ರಕ್ಷಿಸಿ. ನಿಕಟತಮ ಸಿಂಜೆಂಟಾ ಖಾದ್ಯ ಮಳಿಗೆಯಲ್ಲಿ ಟೋಪಿಕ್ 15 ಡಬ್ಲ್ಯುಪಿ ಕೇಳಿ.",
+      "ivr_meta": {
+        "status": "success",
+        "char_count": 309,
+        "generated_at": "2026-05-20T17:52:49.078030",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "poster_image_url": null,
+      "poster_file_path": null,
+      "poster_status": "success",
+      "poster_prompt_used": "Agricultural campaign poster for wheat farmers in Karnataka, India. Product: Topik 15 WP. Growth stage: tillering in 0 days. Mood: urgent, time-sensitive. Feature this person prominently as a brand ambassador in the foreground: A young man, approximately late teens to early twenties, with a clean casual appearance and minimal facial hair, presenting a calm and neutral expression. Include text overlay in Kannada language. Style: simple, high contrast, suitable for low-literacy rural audience. Show the wheat plant and product packaging. Clean layout, bold text, no complex graphics.",
+      "poster_generated_at": "2026-05-20T17:52:49.078041",
+      "models_used": {
+        "text": "anthropic/claude-haiku-4.5",
+        "image": "google/gemini-2.5-flash-image"
+      }
+    },
+    "SEG_013": {
+      "channel": "rep_assist",
+      "language": "Hindi",
+      "persona": "pre_stage_alert",
+      "whatsapp": null,
+      "whatsapp_meta": null,
+      "sms": null,
+      "sms_meta": null,
+      "ivr_script": "भैया, सुनो! अभी तुम्हारे गेहूँ में जंगली जई और घास के पौधे निकल रहे हैं न? यह बिल्कुल सही समय है स्प्रे करने का। अगर अभी नहीं किया, तो ये खरपतवार तुम्हारी फसल को खराब कर देंगे। टॉपिक 15 डब्ल्यूपी छिड़क दो आज ही। बताओ, तुम कल सुबह स्प्रे कर सकते हो?",
+      "ivr_meta": {
+        "status": "success",
+        "char_count": 248,
+        "generated_at": "2026-05-20T17:52:53.283272",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "poster_image_url": null,
+      "poster_file_path": null,
+      "poster_status": "success",
+      "poster_prompt_used": "Agricultural campaign poster for wheat farmers in Madhya Pradesh, India. Product: Topik 15 WP. Growth stage: tillering in 0 days. Mood: urgent, time-sensitive. Feature this person prominently as a brand ambassador in the foreground: A young man, approximately late teens to early twenties, with a clean casual appearance and minimal facial hair, presenting a calm and neutral expression. Include text overlay in Hindi language. Style: simple, high contrast, suitable for low-literacy rural audience. Show the wheat plant and product packaging. Clean layout, bold text, no complex graphics.",
+      "poster_generated_at": "2026-05-20T17:52:53.283288",
+      "models_used": {
+        "text": "anthropic/claude-haiku-4.5",
+        "image": "google/gemini-2.5-flash-image"
+      }
+    },
+    "SEG_014": {
+      "channel": "whatsapp",
+      "language": "Hindi",
+      "persona": "hot_lead",
+      "whatsapp": "आपके गेहूं के खरपतवार अभी 2-3 पत्ती पर हैं - बिल्कुल सही समय है। Topik 15 WP से आज ही छिड़काव करें और उपज बढ़ाएं। अपने पास के दुकानदार से अभी ऑर्डर करें।",
+      "whatsapp_meta": {
+        "status": "success",
+        "char_count": 153,
+        "generated_at": "2026-05-20T17:53:03.148796",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "sms": "टॉपिक 15 WP से अभी जंगली जई को खत्म करें। अपने पास के डीलर से आज ही खरीदें। बेहतर फसल के लिए अभी ऑर्डर करें।",
+      "sms_meta": {
+        "status": "success",
+        "char_count": 108,
+        "generated_at": "2026-05-20T17:53:03.148806",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "ivr_script": "नमस्ते भैया! गेहूँ की बुवाई का यह सही समय है। आपके खेत में जंगली जई और घास जैसी खरपतवारें निकलने लगी होंगी। ये आपकी फसल को नुकसान पहुँचाती हैं। टॉपिक 15 डब्ल्यूपी से इन खरपतवारों को 2-3 पत्ती की अवस्था में ही खत्म कर दें। आपकी फसल स्वस्थ रहेगी, पैदावार अच्छी होगी। अपने नजदीकी सिंजेंटा डीलर से टॉपिक 15 डब्ल्यूपी माँगिए। आज ही खरीद लीजिए!",
+      "ivr_meta": {
+        "status": "success",
+        "char_count": 338,
+        "generated_at": "2026-05-20T17:53:03.148811",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "poster_image_url": null,
+      "poster_file_path": null,
+      "poster_status": "success",
+      "poster_prompt_used": "Agricultural campaign poster for wheat farmers in Madhya Pradesh, India. Product: Topik 15 WP. Growth stage: tillering in 0 days. Mood: informative, trustworthy. Feature this person prominently as a brand ambassador in the foreground: A young man, approximately late teens to early twenties, with a clean casual appearance and minimal facial hair, presenting a calm and neutral expression. Include text overlay in Hindi language. Style: simple, high contrast, suitable for low-literacy rural audience. Show the wheat plant and product packaging. Clean layout, bold text, no complex graphics.",
+      "poster_generated_at": "2026-05-20T17:53:03.148835",
+      "models_used": {
+        "text": "anthropic/claude-haiku-4.5",
+        "image": "google/gemini-2.5-flash-image"
+      }
+    },
+    "SEG_015": {
+      "channel": "whatsapp",
+      "language": "Hindi",
+      "persona": "pre_stage_alert",
+      "whatsapp": "गेहूं की बालियों में खरपतवार आ गई? अभी Topik 15 WP का छिड़काव करो। 2-3 पत्ती वाली घास को खत्म कर दो। देरी मत करो, फसल बचाओ। अपने पास के डीलर से संपर्क करो।",
+      "whatsapp_meta": {
+        "status": "success",
+        "char_count": 155,
+        "generated_at": "2026-05-20T17:53:13.656863",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "sms": "गेहूं में जंगली जई आ गई? अभी Topik 15 WP डालें। खरपतवार 2-3 पत्ती पर स्प्रे करें। देरी न करें, फसल बचाएं।",
+      "sms_meta": {
+        "status": "success",
+        "char_count": 105,
+        "generated_at": "2026-05-20T17:53:13.656871",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "ivr_script": "नमस्ते भैया! गेहूँ की बुवाई का समय आ गया है। सुनिए, अभी जंगली जई और घास-फूस के खरपतवार आपकी फसल को नुकसान पहुँचा सकते हैं। तुरंत काम करें! जब खरपतवार 2-3 पत्ती वाले हों, तो टॉपिक 15 डब्ल्यू पी का इस्तेमाल करें। यह दवा बहुत असरदार है। आपकी फसल बचेगी, पैदावार अच्छी होगी। अपने नजदीकी सिनजेंटा डीलर से टॉपिक माँगें। धन्यवाद!",
+      "ivr_meta": {
+        "status": "success",
+        "char_count": 321,
+        "generated_at": "2026-05-20T17:53:13.656874",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "poster_image_url": null,
+      "poster_file_path": null,
+      "poster_status": "success",
+      "poster_prompt_used": "Agricultural campaign poster for wheat farmers in Madhya Pradesh, India. Product: Topik 15 WP. Growth stage: tillering in 0 days. Mood: urgent, time-sensitive. Feature this person prominently as a brand ambassador in the foreground: A young man, approximately late teens to early twenties, with a clean casual appearance and minimal facial hair, presenting a calm and neutral expression. Include text overlay in Hindi language. Style: simple, high contrast, suitable for low-literacy rural audience. Show the wheat plant and product packaging. Clean layout, bold text, no complex graphics.",
+      "poster_generated_at": "2026-05-20T17:53:13.656942",
+      "models_used": {
+        "text": "anthropic/claude-haiku-4.5",
+        "image": "google/gemini-2.5-flash-image"
+      }
+    },
+    "SEG_016": {
+      "channel": "rep_assist",
+      "language": "Marathi",
+      "persona": "pre_stage_alert",
+      "whatsapp": null,
+      "whatsapp_meta": null,
+      "sms": null,
+      "sms_meta": null,
+      "ivr_script": "\"भाऊ, तुमच्या गहूमध्ये जंगली ओट आणि इतर गवताची झाडे दिसत आहेत ना? आता टिलरिंग सुरू होणार आहे. हे तर गंभीर काळ आहे! आज किंवा उद्या Topik 15 WP हे स्प्रे करा - २-३ पत्र्यांच्या अवस्थेत. हरकत नाही तर उपज खराब होईल. आज साधने तयार करून उद्या स्प्रे करा, ठीक आहे?\"",
+      "ivr_meta": {
+        "status": "success",
+        "char_count": 258,
+        "generated_at": "2026-05-20T17:53:18.582514",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "poster_image_url": null,
+      "poster_file_path": null,
+      "poster_status": "success",
+      "poster_prompt_used": "Agricultural campaign poster for wheat farmers in Maharashtra, India. Product: Topik 15 WP. Growth stage: tillering in 0 days. Mood: urgent, time-sensitive. Feature this person prominently as a brand ambassador in the foreground: A young man, approximately late teens to early twenties, with a clean casual appearance and minimal facial hair, presenting a calm and neutral expression. Include text overlay in Marathi language. Style: simple, high contrast, suitable for low-literacy rural audience. Show the wheat plant and product packaging. Clean layout, bold text, no complex graphics.",
+      "poster_generated_at": "2026-05-20T17:53:18.582525",
+      "models_used": {
+        "text": "anthropic/claude-haiku-4.5",
+        "image": "google/gemini-2.5-flash-image"
+      }
+    },
+    "SEG_018": {
+      "channel": "whatsapp",
+      "language": "Marathi",
+      "persona": "pre_stage_alert",
+      "whatsapp": "गव्हारीच्या तिल्लर स्टेजला येऊन गेले. जंगली ओट आणि गवत खरपतवार आता २-३ पत्र्याच्या अवस्थेत आहेत. Topik 15 WP स्प्रे करा आता! उशीरा केल्यास पिक नष्ट होईल. आजच तुमच्या खाद्य विक्रेत्याकडे विचारा.",
+      "whatsapp_meta": {
+        "status": "success",
+        "char_count": 193,
+        "generated_at": "2026-05-20T17:53:31.273002",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "sms": "तुमच्या गव्हाराच्या तिलकीच्या अवस्थेत जंगली ओट नष्ट करा. Topik 15 WP वापरून २-३ पत्रीच्या अवस्थेत फवारा करा. आजच ऑर्डर द्या.",
+      "sms_meta": {
+        "status": "success",
+        "char_count": 124,
+        "generated_at": "2026-05-20T17:53:31.273020",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "ivr_script": "\"नमस्कार शेतकरी भाई! गहू लागवडीचा हा महत्वाचा काळ आहे. तुमच्या शेतात रानटी ओट आणि इतर तणांचा प्रादुर्भाव होऊ शकतो. हे तण फसलीला मोठी हानी करतात. त्यामुळे आज्च लगेच टॉपिक १५ डब्ल्यूपी वापरा. तण २-३ पत्रीच्या अवस्थेत स्प्रे करा. हे शक्तिशाली औषध तुमच्या गहू पिकास संरक्षण देईल. तुमच्या जवळील सिंजेंटा विक्रेत्याकडे टॉपिक १५ डब्ल्यूपी मागा.\"",
+      "ivr_meta": {
+        "status": "success",
+        "char_count": 338,
+        "generated_at": "2026-05-20T17:53:31.273024",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "poster_image_url": null,
+      "poster_file_path": null,
+      "poster_status": "success",
+      "poster_prompt_used": "Agricultural campaign poster for wheat farmers in Maharashtra, India. Product: Topik 15 WP. Growth stage: tillering in 0 days. Mood: urgent, time-sensitive. Feature this person prominently as a brand ambassador in the foreground: A young man, approximately late teens to early twenties, with a clean casual appearance and minimal facial hair, presenting a calm and neutral expression. Include text overlay in Marathi language. Style: simple, high contrast, suitable for low-literacy rural audience. Show the wheat plant and product packaging. Clean layout, bold text, no complex graphics.",
+      "poster_generated_at": "2026-05-20T17:53:31.273031",
+      "models_used": {
+        "text": "anthropic/claude-haiku-4.5",
+        "image": "google/gemini-2.5-flash-image"
+      }
+    },
+    "SEG_019": {
+      "channel": "rep_assist",
+      "language": "Punjabi",
+      "persona": "pre_stage_alert",
+      "whatsapp": null,
+      "whatsapp_meta": null,
+      "sms": null,
+      "sms_meta": null,
+      "ivr_script": "ਭਾਈ, ਸੁਣੋ! ਤੁਹਾਡੀ ਕਣਕ ਹੁਣ ਕੰਢੀ ਵੱਲ ਜਾ ਰਹੀ ਏ। ਜੰਗਲੀ ਜਈ ਅਤੇ ਘਾਹ ਵਾਲੀਆਂ ਬੂਟੀਆਂ ਹੁਣ ਕਣਕ ਨੂੰ ਮਾਰ ਦੇਣਗੀਆਂ। ਟੋਪਿਕ 15 ਨਾਲ ਅੱਜ ਹੀ ਛਿੜਕਾਅ ਕਰ ਲਓ। ਦੇਰੀ ਨਾ ਕਰੋ! ਕੀ ਤੁਸੀਂ ਅੱਜ ਸ਼ਾਮ ਨੂੰ ਛਿੜਕਾਅ ਦਾ ਪ੍ਰਬੰਧ ਕਰ ਸਕਦੇ ਹੋ?",
+      "ivr_meta": {
+        "status": "success",
+        "char_count": 198,
+        "generated_at": "2026-05-20T17:53:38.337373",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "poster_image_url": null,
+      "poster_file_path": null,
+      "poster_status": "success",
+      "poster_prompt_used": "Agricultural campaign poster for wheat farmers in Punjab, India. Product: Topik 15 WP. Growth stage: tillering in 0 days. Mood: urgent, time-sensitive. Feature this person prominently as a brand ambassador in the foreground: A young man, approximately late teens to early twenties, with a clean casual appearance and minimal facial hair, presenting a calm and neutral expression. Include text overlay in Punjabi language. Style: simple, high contrast, suitable for low-literacy rural audience. Show the wheat plant and product packaging. Clean layout, bold text, no complex graphics.",
+      "poster_generated_at": "2026-05-20T17:53:38.337399",
+      "models_used": {
+        "text": "anthropic/claude-haiku-4.5",
+        "image": "google/gemini-2.5-flash-image"
+      }
+    },
+    "SEG_020": {
+      "channel": "whatsapp",
+      "language": "Punjabi",
+      "persona": "hot_lead",
+      "whatsapp": "ਗੋਦੀ ਵਾਲੀ ਘਾਹ ਤੋਂ ਬਚਾਓ! Topik 15 WP ਨਾਲ ਹੁਣੇ ਛਿੜਕੋ ਤੇ ਕਣਕ ਨੂੰ ਬਚਾਓ। ਆਪਣੇ ਪਾਸੇ ਦੀ ਦੁਕਾਨ 'ਚ ਜਾ ਕੇ ਲੈ ਆਓ ਅੱਜ ਹੀ!",
+      "whatsapp_meta": {
+        "status": "success",
+        "char_count": 109,
+        "generated_at": "2026-05-20T17:53:52.687933",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "sms": "ਟੋਪਿਕ 15 WP ਨਾਲ ਜੰਗਲੀ ਜਈ ਖਤਮ ਕਰੋ। ਆਪਣੇ ਨੇੜੇ ਡੀਲਰ ਕੋਲ ਅੱਜ ਹੀ ਆਰਡਰ ਦਿਓ। ਸਮਾਂ ਜ਼ਿਆਦਾ ਨਾ ਗਵਾਓ।",
+      "sms_meta": {
+        "status": "success",
+        "char_count": 90,
+        "generated_at": "2026-05-20T17:53:52.687941",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "ivr_script": "ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ ਭਰਾ, ਗੋਡੀ ਦਾ ਮੌਸਮ ਚੰਗਾ ਆ ਗਿਆ। ਤੁਹਾਡੇ ਕਣਕ ਦੀ ਗੋਡੀ ਸ਼ੁਰੂ ਹੋ ਰਹੀ ਏ, ਪਰ ਜੰਗਲੀ ਜਈ ਅਤੇ ਘਾਹ ਵਾਲੀਆਂ ਬਿਮਾਰੀਆਂ ਫ਼ਸਲ ਨੂੰ ਨੁਕਸਾਨ ਪਹੁੰਚਾ ਸਕਦੀਆਂ ਨੇ। **ਟੋਪਿਕ 15 WP** ਨਾਲ ਹੁਣੇ ਹੀ ਛਿੜਕਾਅ ਕਰੋ ਅਤੇ ਆਪਣੀ ਫ਼ਸਲ ਨੂੰ ਸੁਰੱਖਿਅਤ ਰੱਖੋ। ਆਪਣੇ ਨਜ਼ਦੀਕੀ ਸਿੰਜੇਟਾ ਡੀਲਰ ਕੋਲ **ਟੋਪਿਕ 15 WP** ਮੰਗੋ।",
+      "ivr_meta": {
+        "status": "success",
+        "char_count": 272,
+        "generated_at": "2026-05-20T17:53:52.687944",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "poster_image_url": null,
+      "poster_file_path": null,
+      "poster_status": "success",
+      "poster_prompt_used": "Agricultural campaign poster for wheat farmers in Punjab, India. Product: Topik 15 WP. Growth stage: tillering in 0 days. Mood: informative, trustworthy. Feature this person prominently as a brand ambassador in the foreground: A young man, approximately late teens to early twenties, with a clean casual appearance and minimal facial hair, presenting a calm and neutral expression. Include text overlay in Punjabi language. Style: simple, high contrast, suitable for low-literacy rural audience. Show the wheat plant and product packaging. Clean layout, bold text, no complex graphics.",
+      "poster_generated_at": "2026-05-20T17:53:52.687951",
+      "models_used": {
+        "text": "anthropic/claude-haiku-4.5",
+        "image": "google/gemini-2.5-flash-image"
+      }
+    },
+    "SEG_021": {
+      "channel": "whatsapp",
+      "language": "Punjabi",
+      "persona": "pre_stage_alert",
+      "whatsapp": "ਗੰਢ ਬੰਨਣ ਤੋਂ ਪਹਿਲਾਂ ਜੰਗਲੀ ਜਈ ਨੂੰ ਖਤਮ ਕਰ ਦੇ। Topik 15 WP ਨਾਲ ਹੁਣੇ ਸਪ੍ਰੇ ਕਰ, ਫਸਲ ਸੁਰੱਖਿਅਤ ਰਖ। ਆਪਣੇ ਡੀਲਰ ਨੂੰ ਸੱਦ ਜਾ ਅੱਜ ਹੀ।",
+      "whatsapp_meta": {
+        "status": "success",
+        "char_count": 120,
+        "generated_at": "2026-05-20T17:54:07.743273",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "sms": "ਟਿਲਰਿੰਗ ਸ਼ੁਰੂ ਹੋਣ ਵਾਲੀ ਹੈ। ਅਜੇ ਹੀ Topik 15 WP ਨਾਲ ਜੰਗਲੀ ਜਈ ਦਾ ਛਿੜਕਾਅ ਕਰ ਦਿਓ। ਫਸਲ ਬਚਾਓ। 9876543210 ਤੇ ਸੰਪਰਕ ਕਰੋ।",
+      "sms_meta": {
+        "status": "success",
+        "char_count": 111,
+        "generated_at": "2026-05-20T17:54:07.743292",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "ivr_script": "ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ ਭਾਈ! ਬਸੰਤ ਦੀ ਬਰਕਤ ਨਾਲ ਤੁਹਾਡਾ ਕਣਕ ਤਿਲਰਿੰਗ ਵਿਚ ਆ ਗਿਆ ਹੈ। ਪਰ ਵੇਖੋ, ਜੰਗਲੀ ਜਈ ਤੇ ਘਾਹ ਦੀ ਬਘੀ ਇਸ ਨਾਜ਼ੁਕ ਸਮੇਂ ਵਿਚ ਬੜੀ ਖਤਰਨਾਕ ਹੈ। ਹੁਣ ਹੀ ਟੋਪਿਕ 15 WP ਨਾਲ ਛਿੜਕਾਅ ਕਰੋ ਤੇ ਆਪਣੀ ਫਸਲ ਬਚਾਓ। ਆਪਣੇ ਨੇੜਲੇ ਸਿਨਜੇਨਟਾ ਡੀਲਰ ਕੋਲ ਟੋਪਿਕ 15 WP ਮੰਗੋ।",
+      "ivr_meta": {
+        "status": "success",
+        "char_count": 233,
+        "generated_at": "2026-05-20T17:54:07.743295",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "poster_image_url": null,
+      "poster_file_path": null,
+      "poster_status": "success",
+      "poster_prompt_used": "Agricultural campaign poster for wheat farmers in Punjab, India. Product: Topik 15 WP. Growth stage: tillering in 0 days. Mood: urgent, time-sensitive. Feature this person prominently as a brand ambassador in the foreground: A young man, approximately late teens to early twenties, with a clean casual appearance and minimal facial hair, presenting a calm and neutral expression. Include text overlay in Punjabi language. Style: simple, high contrast, suitable for low-literacy rural audience. Show the wheat plant and product packaging. Clean layout, bold text, no complex graphics.",
+      "poster_generated_at": "2026-05-20T17:54:07.743304",
+      "models_used": {
+        "text": "anthropic/claude-haiku-4.5",
+        "image": "google/gemini-2.5-flash-image"
+      }
+    },
+    "SEG_022": {
+      "channel": "rep_assist",
+      "language": "Hindi",
+      "persona": "pre_stage_alert",
+      "whatsapp": null,
+      "whatsapp_meta": null,
+      "sms": null,
+      "sms_meta": null,
+      "ivr_script": "भाई, सुनो! तुम्हारा गेहूँ अभी टिलरिंग में जा रहा है। अगर जंगली जई और घास के पौधे अभी निकल गए तो फसल खराब हो जाएगी। \n\nTopik 15 WP का छिड़काव करो जब खरपतवार 2-3 पत्ती की अवस्था में हों। यह सही समय है! \n\nआज ही बीज विक्रेता से Topik खरीद लो और कल सुबह स्प्रे कर दे।",
+      "ivr_meta": {
+        "status": "success",
+        "char_count": 261,
+        "generated_at": "2026-05-20T17:54:14.608617",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "poster_image_url": null,
+      "poster_file_path": null,
+      "poster_status": "success",
+      "poster_prompt_used": "Agricultural campaign poster for wheat farmers in Rajasthan, India. Product: Topik 15 WP. Growth stage: tillering in 0 days. Mood: urgent, time-sensitive. Feature this person prominently as a brand ambassador in the foreground: A young man, approximately late teens to early twenties, with a clean casual appearance and minimal facial hair, presenting a calm and neutral expression. Include text overlay in Hindi language. Style: simple, high contrast, suitable for low-literacy rural audience. Show the wheat plant and product packaging. Clean layout, bold text, no complex graphics.",
+      "poster_generated_at": "2026-05-20T17:54:14.608630",
+      "models_used": {
+        "text": "anthropic/claude-haiku-4.5",
+        "image": "google/gemini-2.5-flash-image"
+      }
+    },
+    "SEG_023": {
+      "channel": "whatsapp",
+      "language": "Hindi",
+      "persona": "hot_lead",
+      "whatsapp": "आपके गेहूं के खरपतवार अभी 2-3 पत्ती वाले हैं - यही सही समय है। Topik 15 WP छिड़कें और 100% नियंत्रण पाएं। आज ही अपने पास के डीलर से ले आइए। कोई सवाल हो तो कॉल करें।",
+      "whatsapp_meta": {
+        "status": "success",
+        "char_count": 164,
+        "generated_at": "2026-05-20T17:54:24.003188",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "sms": "टॉपिक 15 WP से अभी जंगली जई को खत्म करें। अपने स्थानीय दुकान से आज ही मंगवाएं। बेहतर फसल के लिए अभी ऑर्डर करें।",
+      "sms_meta": {
+        "status": "success",
+        "char_count": 111,
+        "generated_at": "2026-05-20T17:54:24.003196",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "ivr_script": "नमस्ते भाई! गेहूँ की बुवाई का यह सही समय है। लेकिन जंगली जई और घास जैसे खरपतवार आपकी फसल को नुकसान पहुँचा सकते हैं। इन्हीं को मारने के लिए **टॉपिक 15 डब्ल्यूपी** सबसे अच्छा है। खरपतवार के 2-3 पत्ते आने पर ही इसका छिड़काव करें। आपकी फसल बचेगी, पैदावार बढ़ेगी। अपने नजदीकी सिंजेंटा डीलर से आज ही **टॉपिक 15 डब्ल्यूपी** माँगें।",
+      "ivr_meta": {
+        "status": "success",
+        "char_count": 324,
+        "generated_at": "2026-05-20T17:54:24.003199",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "poster_image_url": null,
+      "poster_file_path": null,
+      "poster_status": "success",
+      "poster_prompt_used": "Agricultural campaign poster for wheat farmers in Rajasthan, India. Product: Topik 15 WP. Growth stage: tillering in 0 days. Mood: informative, trustworthy. Feature this person prominently as a brand ambassador in the foreground: A young man, approximately late teens to early twenties, with a clean casual appearance and minimal facial hair, presenting a calm and neutral expression. Include text overlay in Hindi language. Style: simple, high contrast, suitable for low-literacy rural audience. Show the wheat plant and product packaging. Clean layout, bold text, no complex graphics.",
+      "poster_generated_at": "2026-05-20T17:54:24.003205",
+      "models_used": {
+        "text": "anthropic/claude-haiku-4.5",
+        "image": "google/gemini-2.5-flash-image"
+      }
+    },
+    "SEG_024": {
+      "channel": "whatsapp",
+      "language": "Hindi",
+      "persona": "pre_stage_alert",
+      "whatsapp": "गेहूं की बालियां निकलने वाली हैं। अभी जंगली जई और घास निकल रही है? Topik 15 WP से आज ही स्प्रे करें। कल देर हो जाएगी। अपने पास के डीलर से संपर्क करें।",
+      "whatsapp_meta": {
+        "status": "success",
+        "char_count": 150,
+        "generated_at": "2026-05-20T17:54:33.621039",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "sms": "आपके गेहूँ में जंगली जई आ रही है? अभी Topik 15 WP डालें। खरपतवार के 2-3 पत्ते पर स्प्रे करें। देरी न करें!",
+      "sms_meta": {
+        "status": "success",
+        "char_count": 106,
+        "generated_at": "2026-05-20T17:54:33.621046",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "ivr_script": "नमस्ते भाई! गेहूँ की बुवाई का समय है और जंगली जई जैसी खरपतवारें आपकी फसल को खतरे में डाल सकती हैं। अभी तुरंत कार्रवाई करनी होगी! टॉपिक 15 डब्लू पी आपका सबसे अच्छा समाधान है। खरपतवार के 2-3 पत्तियों के स्तर पर ही इसका छिड़काव करें। यह जंगली जई और घास वाली खरपतवारों को पूरी तरह खत्म कर देगा। अपनी फसल बचाएँ आज ही! अपने नजदीकी सिनजेंटा डीलर से टॉपिक 15 डब्लू पी माँगें।",
+      "ivr_meta": {
+        "status": "success",
+        "char_count": 367,
+        "generated_at": "2026-05-20T17:54:33.621050",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "poster_image_url": null,
+      "poster_file_path": null,
+      "poster_status": "success",
+      "poster_prompt_used": "Agricultural campaign poster for wheat farmers in Rajasthan, India. Product: Topik 15 WP. Growth stage: tillering in 0 days. Mood: urgent, time-sensitive. Feature this person prominently as a brand ambassador in the foreground: A young man, approximately late teens to early twenties, with a clean casual appearance and minimal facial hair, presenting a calm and neutral expression. Include text overlay in Hindi language. Style: simple, high contrast, suitable for low-literacy rural audience. Show the wheat plant and product packaging. Clean layout, bold text, no complex graphics.",
+      "poster_generated_at": "2026-05-20T17:54:33.621057",
+      "models_used": {
+        "text": "anthropic/claude-haiku-4.5",
+        "image": "google/gemini-2.5-flash-image"
+      }
+    },
+    "SEG_025": {
+      "channel": "rep_assist",
+      "language": "Hindi",
+      "persona": "pre_stage_alert",
+      "whatsapp": null,
+      "whatsapp_meta": null,
+      "sms": null,
+      "sms_meta": null,
+      "ivr_script": "भैया, सुनो! तुम्हारा गेहूँ अभी 2-3 पत्ती वाले जंगली जई और घास से बहुत खतरे में है। अगर अभी नहीं निकाले तो फसल खराब हो जाएगी। Topik 15 WP स्प्रे कर दो आज ही। यह दवा बिल्कुल सही काम करेगी। बताओ, तुम आज शाम को स्प्रे शुरू कर दोगे न?",
+      "ivr_meta": {
+        "status": "success",
+        "char_count": 229,
+        "generated_at": "2026-05-20T17:54:37.462228",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "poster_image_url": null,
+      "poster_file_path": null,
+      "poster_status": "success",
+      "poster_prompt_used": "Agricultural campaign poster for wheat farmers in Uttar Pradesh, India. Product: Topik 15 WP. Growth stage: tillering in 0 days. Mood: urgent, time-sensitive. Feature this person prominently as a brand ambassador in the foreground: A young man, approximately late teens to early twenties, with a clean casual appearance and minimal facial hair, presenting a calm and neutral expression. Include text overlay in Hindi language. Style: simple, high contrast, suitable for low-literacy rural audience. Show the wheat plant and product packaging. Clean layout, bold text, no complex graphics.",
+      "poster_generated_at": "2026-05-20T17:54:37.462257",
+      "models_used": {
+        "text": "anthropic/claude-haiku-4.5",
+        "image": "google/gemini-2.5-flash-image"
+      }
+    },
+    "SEG_026": {
+      "channel": "whatsapp",
+      "language": "Hindi",
+      "persona": "hot_lead",
+      "whatsapp": "गेहूं की खरपतवार से निपटने का सही समय अभी है। Topik 15 WP से जंगली जई और घास वाली खरपतवार को खत्म करें। अपने पास के दुकानदार से आज ही मंगवा लें।",
+      "whatsapp_meta": {
+        "status": "success",
+        "char_count": 144,
+        "generated_at": "2026-05-20T17:54:47.026179",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "sms": "टोपिक 15 डब्लू पी से अभी अपनी गेहूं की फसल बचाएं। जंगली जई खत्म करने के लिए आज ही अपने डीलर से खरीदें।",
+      "sms_meta": {
+        "status": "success",
+        "char_count": 102,
+        "generated_at": "2026-05-20T17:54:47.026185",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "ivr_script": "नमस्ते भैया! गेहूँ की बुवाई का समय आ गया है। आपके खेत में जंगली जई और घास जैसी खरपतवार तो नहीं आ गई? ये समय पर नियंत्रण न करें तो फसल को बहुत नुकसान होता है। \n\nTopik 15 WP आपका सबसे अच्छा समाधान है। जब खरपतवार 2-3 पत्ती की अवस्था में हों, तो बस एक छिड़काव करें और समस्या खत्म। \n\nअपने नजदीकी Syngenta डीलर से Topik माँगिए। आपकी फसल को स्वस्थ रखिए!",
+      "ivr_meta": {
+        "status": "success",
+        "char_count": 346,
+        "generated_at": "2026-05-20T17:54:47.026189",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "poster_image_url": null,
+      "poster_file_path": null,
+      "poster_status": "success",
+      "poster_prompt_used": "Agricultural campaign poster for wheat farmers in Uttar Pradesh, India. Product: Topik 15 WP. Growth stage: tillering in 0 days. Mood: informative, trustworthy. Feature this person prominently as a brand ambassador in the foreground: A young man, approximately late teens to early twenties, with a clean casual appearance and minimal facial hair, presenting a calm and neutral expression. Include text overlay in Hindi language. Style: simple, high contrast, suitable for low-literacy rural audience. Show the wheat plant and product packaging. Clean layout, bold text, no complex graphics.",
+      "poster_generated_at": "2026-05-20T17:54:47.026232",
+      "models_used": {
+        "text": "anthropic/claude-haiku-4.5",
+        "image": "google/gemini-2.5-flash-image"
+      }
+    },
+    "SEG_027": {
+      "channel": "whatsapp",
+      "language": "Hindi",
+      "persona": "pre_stage_alert",
+      "whatsapp": "आपके गेहूँ में जंगली जई आ गई है? अभी Topik 15 WP डालो! 2-3 पत्ती वाले खरपतवार पर तुरंत छिड़काव करो, नहीं तो फसल खराब हो जाएगी। अपने पास के दुकानदार से आज ही माँग लो। जल्दी करो भाई! 🌾",
+      "whatsapp_meta": {
+        "status": "success",
+        "char_count": 182,
+        "generated_at": "2026-05-20T17:54:56.764131",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "sms": "अभी करें कार्रवाई! गेहूं में जंगली जई आ रही है। Topik 15 WP से आज ही छिड़काव करें। फसल बचाएं, नुकसान से बचें।",
+      "sms_meta": {
+        "status": "success",
+        "char_count": 109,
+        "generated_at": "2026-05-20T17:54:56.764138",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "ivr_script": "नमस्ते भाई! गेहूँ की बुवाई के बाद यह सबसे महत्वपूर्ण समय है। जंगली जई और अन्य खरपतवार आपकी फसल को नुकसान पहुँचा रहे हैं। अभी देरी मत करिए! टॉपिक 15 डब्ल्यूपी का इस्तेमाल करें जब खरपतवार 2-3 पत्ती वाले हों। यह आपकी गेहूँ की फसल को बचाएगा। अपने नजदीकी सिनजेंटा डीलर से टॉपिक माँगिए।",
+      "ivr_meta": {
+        "status": "success",
+        "char_count": 280,
+        "generated_at": "2026-05-20T17:54:56.764141",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "poster_image_url": null,
+      "poster_file_path": null,
+      "poster_status": "success",
+      "poster_prompt_used": "Agricultural campaign poster for wheat farmers in Uttar Pradesh, India. Product: Topik 15 WP. Growth stage: tillering in 0 days. Mood: urgent, time-sensitive. Feature this person prominently as a brand ambassador in the foreground: A young man, approximately late teens to early twenties, with a clean casual appearance and minimal facial hair, presenting a calm and neutral expression. Include text overlay in Hindi language. Style: simple, high contrast, suitable for low-literacy rural audience. Show the wheat plant and product packaging. Clean layout, bold text, no complex graphics.",
+      "poster_generated_at": "2026-05-20T17:54:56.764148",
+      "models_used": {
+        "text": "anthropic/claude-haiku-4.5",
+        "image": "google/gemini-2.5-flash-image"
+      }
+    },
+    "SEG_028": {
+      "channel": "rep_assist",
+      "language": "Bengali",
+      "persona": "pre_stage_alert",
+      "whatsapp": null,
+      "whatsapp_meta": null,
+      "sms": null,
+      "sms_meta": null,
+      "ivr_script": "গম্ভীর সতর্কতা - আপনার গমের ক্ষেত কঠিন পর্যায়ে পৌঁছাচ্ছে। এখনই বন্য ওট এবং তৃণজাত আগাছা দমন করতে হবে। টপিক ১৫ ডব্লিউপি ব্যবহার করুন - এটি ২-৩ পাতার পর্যায়ে সবচেয়ে কার্যকর। দেরি করবেন না, ফলন নষ্ট হবে। আজই আপনার জল সরবরাহকারীকে ডাকুন এবং স্প্রে প্রস্তুতি শুরু করুন।",
+      "ivr_meta": {
+        "status": "success",
+        "char_count": 267,
+        "generated_at": "2026-05-20T17:55:02.266844",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "poster_image_url": null,
+      "poster_file_path": null,
+      "poster_status": "success",
+      "poster_prompt_used": "Agricultural campaign poster for wheat farmers in West Bengal, India. Product: Topik 15 WP. Growth stage: tillering in 0 days. Mood: urgent, time-sensitive. Feature this person prominently as a brand ambassador in the foreground: A young man, approximately late teens to early twenties, with a clean casual appearance and minimal facial hair, presenting a calm and neutral expression. Include text overlay in Bengali language. Style: simple, high contrast, suitable for low-literacy rural audience. Show the wheat plant and product packaging. Clean layout, bold text, no complex graphics.",
+      "poster_generated_at": "2026-05-20T17:55:02.266895",
+      "models_used": {
+        "text": "anthropic/claude-haiku-4.5",
+        "image": "google/gemini-2.5-flash-image"
+      }
+    },
+    "SEG_030": {
+      "channel": "whatsapp",
+      "language": "Bengali",
+      "persona": "pre_stage_alert",
+      "whatsapp": "আপনার গমের ক্ষেতে আগাছা দেখছেন? এখনই Topik 15 WP ছিটিয়ে দিন। ২-৩ পাতার পর্যায়ে স্প্রে করুন। দেরি করবেন না, আজই আপনার ডিলারকে যোগাযোগ করুন।",
+      "whatsapp_meta": {
+        "status": "success",
+        "char_count": 140,
+        "generated_at": "2026-05-20T17:55:13.651534",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "sms": "টপিক ১৫ ডাব্লিউপি দিয়ে এখনই আগাছা নিয়ন্ত্রণ করুন। টিলারিং শুরু হওয়ার আগে ২-৩ পাতার পর্যায়ে ছিটান। আপনার গমের ফলন রক্ষা করুন। আজই ডিলারকে যোগাযোগ করুন।",
+      "sms_meta": {
+        "status": "success",
+        "char_count": 154,
+        "generated_at": "2026-05-20T17:55:13.651551",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "ivr_script": "নমস্কার কৃষক ভাই। এই মুহূর্তে আপনার গমের ফসল কুশি বিস্তারের সময়ে আছে। বন্য ওট এবং ঘাসজাতীয় আগাছা এখনই নিয়ন্ত্রণ করা অত্যন্ত জরুরি, নাহলে আপনার ফসলের ক্ষতি হবে। টপিক ১৫ ডাব্লিউপি হল সেরা সমাধান। আগাছার ২-৩ পাতার স্তরে এই ছিটানো প্রয়োগ করুন এবং আপনার ফসল রক্ষা করুন। আজই আপনার নিকটতম সিনজেন্টা খুচরা বিক্রেতার কাছে টপিক ১৫ ডাব্লিউপি চাইুন।",
+      "ivr_meta": {
+        "status": "success",
+        "char_count": 341,
+        "generated_at": "2026-05-20T17:55:13.651554",
+        "model": "anthropic/claude-haiku-4.5"
+      },
+      "poster_image_url": null,
+      "poster_file_path": null,
+      "poster_status": "success",
+      "poster_prompt_used": "Agricultural campaign poster for wheat farmers in West Bengal, India. Product: Topik 15 WP. Growth stage: tillering in 0 days. Mood: urgent, time-sensitive. Feature this person prominently as a brand ambassador in the foreground: A young man, approximately late teens to early twenties, with a clean casual appearance and minimal facial hair, presenting a calm and neutral expression. Include text overlay in Bengali language. Style: simple, high contrast, suitable for low-literacy rural audience. Show the wheat plant and product packaging. Clean layout, bold text, no complex graphics.",
+      "poster_generated_at": "2026-05-20T17:55:13.651563",
       "models_used": {
         "text": "anthropic/claude-haiku-4.5",
         "image": "google/gemini-2.5-flash-image"
