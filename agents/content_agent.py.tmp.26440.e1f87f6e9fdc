@@ -150,18 +150,11 @@ def _generate_segment_content(seg: dict, promoter_desc: str | None = None, campa
     tone_note    = PERSONA_TONE.get(persona, PERSONA_TONE["awareness"])
     lang_note    = LANGUAGE_NOTES.get(language, LANGUAGE_NOTES["Hindi"])
 
-    # Include disease/weather risk context if targeting agent flagged one
-    disease_ctx = seg.get("disease_content_ctx", "")
-    spray_ok    = seg.get("spray_window_ok", True)
-    spray_note  = "" if spray_ok else " NOTE: Spraying conditions are poor today (rain/wind) — advise growers to wait for a suitable window."
-
     context_block = (
         f"Crop: {crop}. Region: {state}, India. Growth stage context: {stage_ctx}. "
         f"Product: {product} ({product_info.get('type', '')}) — "
         f"targets {product_info.get('target', '')}. "
         f"Application: {product_info.get('application', '')}."
-        + (f"\n{disease_ctx}" if disease_ctx else "")
-        + spray_note
     )
 
     if channel == "whatsapp":
@@ -322,35 +315,23 @@ Return only the script text."""
     return call_text(TEXT_MODEL_FAST, system, user, temperature=0.65)
 
 
-_PERSONA_STYLE: dict[str, str] = {
-    "hot_lead":              "bold, high-energy marketing poster with vibrant greens and gold. Large CTA button.",
-    "pre_stage_alert":       "urgent warning-style poster with deep amber and red accents. Clock or urgency icon.",
-    "offline_reinforcement": "warm, community-feel poster with earthy tones, handshake or farmer gathering imagery.",
-    "awareness":             "clean educational poster with soft greens and blue sky. Informative, inviting layout.",
-}
-
-
 def _build_poster_prompt(
     crop: str, product: str, state: str, language: str,
     stage_ctx: str, persona: str, promoter_desc: str | None = None,
 ) -> str:
-    style = _PERSONA_STYLE.get(persona, _PERSONA_STYLE["awareness"])
+    urgency = "urgent, time-sensitive" if persona == "pre_stage_alert" else "informative, trustworthy"
     promoter_part = (
-        f"Feature this person prominently as a brand ambassador in the foreground: {promoter_desc}. "
+        f"Feature this person prominently as a brand ambassador in the foreground: {promoter_desc} "
         if promoter_desc else ""
     )
     return (
-        f"Professional agricultural marketing poster. "
-        f"Background: photorealistic {crop} field in {state}, India — lush, healthy crop in the golden hour light. "
-        f"Foreground: product packaging of '{product}' displayed prominently with a clean label. "
+        f"Agricultural campaign poster for {crop} farmers in {state}, India. "
+        f"Product: {product}. Growth stage: {stage_ctx}. "
+        f"Mood: {urgency}. "
         f"{promoter_part}"
-        f"Poster style: {style} "
-        f"Typography: bold product name '{product}' at top, crop stage context '{stage_ctx}' as a subheading. "
-        f"A call-to-action banner at the bottom in {language} script. "
-        f"Syngenta logo area at the bottom corner. "
-        f"Overall look: high-quality print-ready marketing poster, 1:1 square format, "
-        f"no watermarks, photorealistic background with clean vector overlay text. "
-        f"Make it look like a real Syngenta India advertisement."
+        f"Include text overlay in {language} language. "
+        f"Style: simple, high contrast, suitable for low-literacy rural audience. "
+        f"Show the {crop} plant and product packaging. Clean layout, bold text, no complex graphics."
     )
 
 
@@ -375,7 +356,6 @@ def _find_pillow_font(size: int):
     """Return an ImageFont for the given size, preferring Nirmala UI for Indian script support."""
     from PIL import ImageFont
     candidates = [
-        "C:/Windows/Fonts/Nirmala.ttc",
         "C:/Windows/Fonts/Nirmala.ttf",
         "C:/Windows/Fonts/mangal.ttf",
         "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
@@ -491,16 +471,13 @@ def _generate_local_poster(
     crop_uc = crop.upper()
     header_fill = (212, 237, 218)
     if emoji and f_emoji:
-        try:
-            # Measure both parts to compute total width and centre the pair
-            ew = (f_emoji.getbbox(emoji) or (0, 0, 60, 60))[2]
-            nw = (f_xl.getbbox(f"  {crop_uc}") or (0, 0, 400, 70))[2]
-            total_w = ew + nw
-            ex = cx - total_w // 2
-            draw.text((ex, 95), emoji, fill=header_fill, font=f_emoji, anchor="lm")
-            draw.text((ex + ew, 95), f"  {crop_uc}", fill=header_fill, font=f_xl, anchor="lm")
-        except Exception:
-            draw.text((cx, 95), crop_uc, fill=header_fill, font=f_xl, anchor="mm")
+        # Measure both parts to compute total width and centre the pair
+        ew = f_emoji.getlength(emoji) if hasattr(f_emoji, "getlength") else f_emoji.getbbox(emoji)[2]
+        nw = f_xl.getlength(f"  {crop_uc}") if hasattr(f_xl, "getlength") else f_xl.getbbox(f"  {crop_uc}")[2]
+        total_w = ew + nw
+        ex = cx - total_w // 2
+        draw.text((ex, 95), emoji, fill=header_fill, font=f_emoji, anchor="lm")
+        draw.text((ex + ew, 95), f"  {crop_uc}", fill=header_fill, font=f_xl, anchor="lm")
     else:
         # No emoji font — just draw the crop name centred
         draw.text((cx, 95), crop_uc, fill=header_fill, font=f_xl, anchor="mm")

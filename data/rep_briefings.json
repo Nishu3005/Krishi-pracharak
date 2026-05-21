@@ -407,5 +407,40 @@
     ],
     "offline_growers_count": 1,
     "territory_id": "TER_0028"
+  },
+  "REP_0004": {
+    "generated_at": "2026-05-21T13:06:43.506995",
+    "briefing_text": "**REP_0004 Weekly Briefing | TER_0004 | Week of Jan 15**\n\nPrioritize restocking Movondo this week—you're at the tightest window with only 6 weeks before stockout, which creates both a sales risk and a customer service opportunity to lock in early orders. Axial 50 EC and Vibrance Integral follow close behind at 8 weeks each; bundle these conversations where possible to maximize efficiency. Don't overlook your 4 non-smartphone growers in the territory—schedule personal visits this week to brief them on inventory status and capture any spring orders before phone-only communication becomes a bottleneck. Getting ahead on these three restock conversations now prevents emergency calls later and strengthens relationships with your offline accounts.",
+    "priority_actions": [
+      {
+        "type": "restock_alert",
+        "sku": "Movondo",
+        "tehsil": "territory-wide",
+        "weeks_until_oos": 6,
+        "avg_stock": 142.5,
+        "trend_slope": -21.6,
+        "rank": 1
+      },
+      {
+        "type": "restock_alert",
+        "sku": "Axial 50 EC",
+        "tehsil": "territory-wide",
+        "weeks_until_oos": 8,
+        "avg_stock": 219.0,
+        "trend_slope": -8.4,
+        "rank": 2
+      },
+      {
+        "type": "restock_alert",
+        "sku": "Vibrance Integral",
+        "tehsil": "territory-wide",
+        "weeks_until_oos": 8,
+        "avg_stock": 177.2,
+        "trend_slope": -5.7,
+        "rank": 3
+      }
+    ],
+    "offline_growers_count": 4,
+    "territory_id": "TER_0004"
   }
 }

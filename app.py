@@ -70,11 +70,16 @@ gi = _load_grower_insights()
 
 # ── Top metric row ─────────────────────────────────────────────────────────
 m1, m2, m3, m4, m5 = st.columns(5)
-m1.metric("Total Growers", f"{gi['total_growers']:,}")
-m2.metric("States", gi["total_states"])
-m3.metric("Districts", gi["total_districts"])
-m4.metric("Avg Farm Size", f"{gi['farm_size_stats']['mean']} ac")
-m5.metric("Scan Rate", f"{gi['product_scan_rate_pct']}%")
+m1.metric("Total Growers", f"{gi['total_growers']:,}",
+          help="Growers tracked across all states in the Syngenta dataset")
+m2.metric("States", gi["total_states"],
+          help="Number of Indian states covered by the grower network")
+m3.metric("Districts", gi["total_districts"],
+          help="Distinct districts with at least one tracked grower")
+m4.metric("Avg Farm Size", f"{gi['farm_size_stats']['mean']} ac",
+          help="Mean farm size in acres across all growers — smaller farms tend to engage more with digital campaigns")
+m5.metric("Scan Rate", f"{gi['product_scan_rate_pct']}%",
+          help="% of growers who scanned a Syngenta product QR code — a strong buying-intent signal")
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -104,6 +109,7 @@ with tab_geo:
         fig_states.update_layout(**_CHART_LAYOUT)
         fig_states.update_traces(marker_color="#2f7d4c")
         st.plotly_chart(fig_states, use_container_width=True)
+        st.caption("Longer bars = more growers in that state. Uttar Pradesh and Rajasthan dominate the network.")
 
     with col_geo_r:
         # Radar chart — language coverage by districts
@@ -131,6 +137,7 @@ with tab_geo:
             **_CHART_LAYOUT,
         )
         st.plotly_chart(fig_radar, use_container_width=True)
+        st.caption("Each spoke = a language. Distance from centre = number of districts covered. Wider area = broader reach.")
 
 # ── Tab: Crops ─────────────────────────────────────────────────────────────
 with tab_crops:
@@ -157,6 +164,7 @@ with tab_crops:
         **_CHART_LAYOUT,
     )
     st.plotly_chart(fig_heat, use_container_width=True)
+    st.caption("Darker green = more growers growing that crop in that state. Use this to identify crop-state combinations with the largest audience for a campaign.")
 
     # Donut pie — crop distribution overall
     crop_dist = gi["crop_distribution"]
@@ -171,6 +179,7 @@ with tab_crops:
     )
     fig_crop_pie.update_layout(title="Overall Crop Distribution", **_CHART_LAYOUT)
     st.plotly_chart(fig_crop_pie, use_container_width=True)
+    st.caption("Share of growers by primary crop. A larger slice means more potential reach for that crop's campaign.")
 
 # ── Tab: Technology & Reach ────────────────────────────────────────────────
 with tab_tech:
@@ -189,6 +198,7 @@ with tab_tech:
         )
         fig_dev.update_layout(title="Device Type Distribution", **_CHART_LAYOUT)
         st.plotly_chart(fig_dev, use_container_width=True)
+        st.caption("Smartphone owners can receive WhatsApp and SMS campaigns. Non-smartphone growers need a rep field visit.")
 
     with col_tech_r:
         # Horizontal bar — scan rate % by state with dashed mean line
@@ -220,6 +230,7 @@ with tab_tech:
         fig_scan.update_layout(**_CHART_LAYOUT)
         fig_scan.update_traces(marker_color="#c07a2b")
         st.plotly_chart(fig_scan, use_container_width=True)
+        st.caption("States to the right of the dashed average line have higher product awareness — growers there are warmer leads.")
 
 # ── Tab: Demographics ─────────────────────────────────────────────────────
 with tab_demo:
@@ -245,6 +256,7 @@ with tab_demo:
         fig_age.update_layout(**_CHART_LAYOUT)
         fig_age.update_traces(marker_color="#5aa876")
         st.plotly_chart(fig_age, use_container_width=True)
+        st.caption("Younger farmers tend to adopt digital channels faster. Higher average age may mean more rep-assist outreach is needed.")
 
     with col_demo_r:
         # Gender donut
@@ -260,6 +272,7 @@ with tab_demo:
         )
         fig_gender.update_layout(**_CHART_LAYOUT)
         st.plotly_chart(fig_gender, use_container_width=True)
+        st.caption("Female farmers show slightly higher response rates in this dataset — a small receptivity bonus is applied during scoring.")
 
         # Farm size buckets donut
         buckets = gi["farm_size_buckets"]
@@ -275,6 +288,7 @@ with tab_demo:
         )
         fig_farm.update_layout(**_CHART_LAYOUT)
         st.plotly_chart(fig_farm, use_container_width=True)
+        st.caption("Small farms (1–2 ac) engage most with campaigns. Large holdings (>10 ac) tend to rely more on direct rep contact.")
 
 
 st.markdown("<br>", unsafe_allow_html=True)

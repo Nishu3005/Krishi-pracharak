@@ -140,31 +140,15 @@ p  { color: var(--ink-soft); line-height: 1.65; }
 
 /* Make metric help/tooltip icon always visible */
 [data-testid="stMetricLabel"] [data-testid="stTooltipHoverTarget"] button,
-[data-testid="stMetricLabel"] [data-testid="stTooltipHoverTarget"] svg,
 [data-testid="stMetricLabel"] button[kind="icon"],
 [data-testid="stMetricLabel"] svg {
   opacity: 1 !important;
   color: var(--muted) !important;
   visibility: visible !important;
-  display: inline-block !important;
 }
 [data-testid="stMetricLabel"] [data-testid="stTooltipHoverTarget"]:hover button,
 [data-testid="stMetricLabel"] [data-testid="stTooltipHoverTarget"]:hover svg {
   color: var(--accent) !important;
-}
-
-/* Streamlit tooltip popup styling */
-[data-testid="stTooltipContent"],
-[data-baseweb="tooltip"] [role="tooltip"] {
-  background: rgba(18,36,25,0.97) !important;
-  color: #d4edda !important;
-  border-radius: 9px !important;
-  font-size: 0.78rem !important;
-  line-height: 1.5 !important;
-  padding: 0.5rem 0.75rem !important;
-  border: 1px solid rgba(47,125,76,0.35) !important;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.4) !important;
-  max-width: 260px !important;
 }
 
 /* ── HTML tooltip utility (for custom HTML sections) ─────────────────────────── */

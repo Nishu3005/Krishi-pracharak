@@ -46,69 +46,60 @@ def call_text(
 
 
 def call_image(model: str, prompt: str) -> str | None:
-    """Generate an image and return a data-URI (base64) or URL, or None on failure.
+    """Generate an image via chat-completions (gpt-5-image) or the images API.
+    Returns a data-URI (base64) or URL, or None on failure.
 
-    Strategy 1 — /v1/images/generations (standard, returns URL)
-    Strategy 2 — /v1/chat/completions with modalities (gpt-5-image stores image
-                  in message.images, a non-standard field not exposed by the SDK,
-                  so we read it from the raw model dump)
+    gpt-5-image and similar models on the token router use /v1/chat/completions.
+    The response content may contain an image_url block or an inline data URI.
+    Falls back to the /v1/images/generate endpoint for other models.
     """
     client = get_client()
 
-    # --- Strategy 1: /v1/images/generations --------------------------------
-    try:
-        response = client.images.generate(
-            model=model,
-            prompt=prompt,
-            n=1,
-            size="1024x1024",
-            quality="high",
-        )
-        item = response.data[0]
-        if getattr(item, "b64_json", None):
-            return f"data:image/png;base64,{item.b64_json}"
-        if getattr(item, "url", None):
-            return item.url
-    except Exception as exc:
-        warnings.warn(f"[ai_client] images.generate failed: {exc}")
-
-    # --- Strategy 2: /v1/chat/completions with modalities ------------------
-    # gpt-5-image returns image data in a non-standard `images` key on the
-    # message object.  The OpenAI SDK doesn't expose it, so we use model_dump().
+    # --- Strategy 1: chat-completions (required for gpt-5-image) ---
     try:
         response = client.chat.completions.create(
             model=model,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=4096,
-            extra_body={"modalities": ["text", "image"]},
         )
-        msg_dict = response.choices[0].message.model_dump()
+        msg = response.choices[0].message
+        content = msg.content or ""
 
-        # Non-standard `images` field the token router adds
-        images = msg_dict.get("images") or []
-        for img in images:
-            url = (img.get("image_url") or {}).get("url", "")
-            if url:
-                return url
-
-        # Fallback: look for image_url blocks inside standard content list
-        content = msg_dict.get("content")
+        # Content may be a list of blocks (vision-style) or a plain string
         if isinstance(content, list):
             for block in content:
-                if isinstance(block, dict) and block.get("type") == "image_url":
-                    url = (block.get("image_url") or {}).get("url", "")
-                    if url:
-                        return url
+                if isinstance(block, dict):
+                    if block.get("type") == "image_url":
+                        url = (block.get("image_url") or {}).get("url", "")
+                        if url:
+                            return url
+                    # Some routers embed raw base64 in a "data" field
+                    if block.get("type") == "image" and block.get("data"):
+                        return f"data:image/png;base64,{block['data']}"
         elif isinstance(content, str) and content.strip():
+            # Plain string response — might be a URL or a data URI
             stripped = content.strip()
             if stripped.startswith("data:image/"):
                 return stripped
+            # Extract first URL-like token
             urls = re.findall(r"https?://\S+", stripped)
             if urls:
                 return urls[0]
+        return None
     except Exception as exc:
-        warnings.warn(f"[ai_client] chat-completions image failed: {exc}")
+        warnings.warn(f"[ai_client] chat-completions image attempt failed: {exc}")
 
+    # --- Strategy 2: /v1/images/generate (older models / gemini) ---
+    for kwargs in [{"response_format": "b64_json"}, {}]:
+        try:
+            resp = client.images.generate(model=model, prompt=prompt, n=1, **kwargs)
+            item = resp.data[0]
+            if getattr(item, "b64_json", None):
+                return f"data:image/png;base64,{item.b64_json}"
+            if getattr(item, "url", None):
+                return item.url
+        except Exception as exc2:
+            warnings.warn(f"[ai_client] images.generate attempt failed ({kwargs}): {exc2}")
     return None
 
 

@@ -13,7 +13,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 import time as _time
-from agents.content_agent import run_content_generation, run_content_generation_streaming, describe_promoter
+from agents.content_agent import run_content_generation_streaming, describe_promoter
 from agents.rep_agent import run_rep_briefing
 from agents.targeting_agent import run_targeting
 from utils.campaign_store import attach_variants, delete_campaign, load_saved_campaigns, save_plan
@@ -58,7 +58,7 @@ _LAYOUT = dict(
     margin=dict(l=10, r=10, t=30, b=10),
     font=dict(color="#1a2520", family="Space Grotesk"),
 )
-REFERENCE_DATE = date(2026, 1, 15)
+REFERENCE_DATE = date.today()
 
 
 def _layout_with(**overrides):
@@ -156,6 +156,59 @@ def _scored_df():
     from utils.features import build_grower_features
     from utils.receptivity_score import score_dataframe
     return score_dataframe(build_grower_features(REFERENCE_DATE))
+
+
+@st.cache_data(show_spinner=False, ttl=3600)
+def _disease_ai_overview(alerts_json: str) -> str:
+    """AI agronomic field advisory summarising all active outbreak alerts."""
+    try:
+        from utils.ai_client import call_text, TEXT_MODEL_FAST
+        alerts = json.loads(alerts_json)
+        if not alerts:
+            return ""
+        lines = "\n".join(
+            f"- {a['level'].upper()} {a.get('type','')} — {a['title']}: {a['body']}"
+            for a in alerts
+        )
+        return call_text(
+            model=TEXT_MODEL_FAST,
+            system=(
+                "You are a senior agronomist at Syngenta India advising field sales reps. "
+                "Be specific, practical, and urgent where needed. Max 3 sentences."
+            ),
+            user=(
+                f"Active outbreak alerts for this campaign:\n{lines}\n\n"
+                "Write a concise field advisory: which crops face the highest immediate risk, "
+                "what action reps should take today, and what to tell farmers about protecting their crop."
+            ),
+            temperature=0.4,
+        )
+    except Exception:
+        return ""
+
+
+@st.cache_data(show_spinner=False, ttl=7200)
+def _disease_outbreak_image(risk_type: str, crop: str, disease_name: str) -> str | None:
+    """Generate an AI image for a disease/pest outbreak alert. Cached per disease × crop."""
+    try:
+        from utils.ai_client import call_image, IMAGE_MODEL
+        if risk_type == "fungal":
+            prompt = (
+                f"Extreme close-up agricultural photograph of {disease_name} fungal disease "
+                f"on {crop} crop leaves, showing characteristic lesions and spores, "
+                f"field setting, natural light, photorealistic, plant pathology documentation"
+            )
+        elif risk_type == "pest":
+            prompt = (
+                f"Close-up agricultural photograph of {disease_name} pest infestation "
+                f"on {crop} crop, insects clearly visible on damaged plant tissue, "
+                f"field setting, natural light, photorealistic, entomology documentation"
+            )
+        else:
+            return None
+        return call_image(IMAGE_MODEL, prompt)
+    except Exception:
+        return None
 
 
 @st.cache_data(ttl=1800)
@@ -340,15 +393,23 @@ def _render_weather_cards(active_states: list[str]):
             else:
                 emoji = _WMO_EMOJI.get(w["condition"], "🌡️")
                 rain_today = (w["forecast_3day"][0]["rain_mm"] if w.get("forecast_3day") else 0) or 0
+                is_fallback = w.get("_is_fallback", False)
                 rain_badge = (
                     f'<div style="margin-top:0.25rem;"><span style="background:#fff3e0;'
                     f'color:{_AMBER};border-radius:5px;padding:1px 5px;font-size:0.67rem;">'
                     f'🌧 {rain_today:.0f}mm</span></div>'
                     if rain_today > 0 else ""
                 )
+                fallback_badge = (
+                    f'<div style="margin-top:0.2rem;"><span style="background:#fff8e1;'
+                    f'color:#9e7a00;border-radius:5px;padding:1px 5px;font-size:0.63rem;">'
+                    f'📅 seasonal estimate</span></div>'
+                    if is_fallback else ""
+                )
                 st.markdown(
-                    f'<div style="border:1px solid #c8dcd0;border-radius:10px;'
-                    f'padding:0.65rem 0.7rem;background:#f4faf6;">'
+                    f'<div style="border:1px solid {"#ddd" if is_fallback else "#c8dcd0"};'
+                    f'border-radius:10px;padding:0.65rem 0.7rem;'
+                    f'background:{"#fdfcf5" if is_fallback else "#f4faf6"};">'
                     f'<div style="font-size:0.65rem;font-weight:700;color:#1a5c35;'
                     f'text-transform:uppercase;letter-spacing:0.04em;">{w["city"]}</div>'
                     f'<div style="font-size:1.35rem;margin:0.15rem 0;">'
@@ -356,17 +417,216 @@ def _render_weather_cards(active_states: list[str]):
                     f'<div style="font-size:0.68rem;color:#4f6157;">{w["condition"]}</div>'
                     f'<div style="font-size:0.66rem;color:#6e7f72;margin-top:0.18rem;">'
                     f'💧{w["humidity_pct"]}% · 💨{w["wind_kmh"]:.0f}km/h</div>'
-                    f'{rain_badge}</div>',
+                    f'{rain_badge}{fallback_badge}</div>',
                     unsafe_allow_html=True,
                 )
-    if any(weather.values()):
+    live_weather     = [w for w in weather.values() if w and not w.get("_is_fallback")]
+    fallback_weather = [w for w in weather.values() if w and     w.get("_is_fallback")]
+    sources_used = sorted({w.get("_source", "live") for w in live_weather})
+    source_label = " · ".join(s.replace("_", " ").title() for s in sources_used) or "Live"
+    if live_weather:
         ages = [
             (datetime.utcnow() - datetime.fromisoformat(w["fetched_at"])).seconds // 60
-            for w in weather.values() if w
+            for w in live_weather
         ]
-        st.caption(f"Open-Meteo · fetched {min(ages)} min ago · 3-day forecast · no API key required")
+        note = f"{source_label} · fetched {min(ages)} min ago · 3-day forecast · no API key required"
+        if fallback_weather:
+            note += f" · {len(fallback_weather)} state(s) using seasonal estimate (network issue)"
+        st.caption(note)
+    elif fallback_weather:
+        st.caption(
+            f"⚠️ Live weather unavailable (Open-Meteo + wttr.in both unreachable) — "
+            f"showing seasonal climate estimates for {len(fallback_weather)} state(s). "
+            "Disease risk assessment still active using representative data."
+        )
     else:
         st.caption("Weather data unavailable — network may be offline.")
+
+
+def _render_disease_alerts(segs: list[dict]) -> None:
+    """Show disease/pest outbreak alerts with AI field advisory and AI-generated images."""
+    # ── Collect unique alerts ──────────────────────────────────────────────────
+    alerts = []
+    seen   = set()
+    for seg in segs:
+        lvl = seg.get("disease_risk_level", "none")
+        if lvl in ("none", None):
+            continue
+        title = seg.get("disease_alert_title") or ""
+        if title in seen:
+            continue
+        seen.add(title)
+        alerts.append({
+            "level":   lvl,
+            "type":    seg.get("disease_risk_type"),
+            "title":   title,
+            "body":    seg.get("disease_alert_body", ""),
+            "spray":   seg.get("spray_window_ok", True),
+            "boost":   seg.get("weather_boost_applied", 0.0),
+            "crop":    seg.get("crop", ""),
+        })
+
+    spray_blocked = [seg for seg in segs if not seg.get("spray_window_ok", True)]
+
+    if not alerts and not spray_blocked:
+        st.caption("✅ No disease or pest outbreak alerts for this campaign's regions.")
+        return
+
+    # ── AI field advisory ──────────────────────────────────────────────────────
+    if alerts:
+        with st.spinner("Generating AI agronomic advisory…"):
+            advisory = _disease_ai_overview(json.dumps(alerts))
+        if advisory:
+            st.markdown(
+                f'<div style="background:linear-gradient(135deg,#0d2318 0%,#1a3d28 100%);'
+                f'border-radius:12px;padding:0.85rem 1.1rem;margin-bottom:1rem;'
+                f'border:1px solid rgba(47,125,76,0.4);">'
+                f'<div style="font-size:0.68rem;font-weight:700;color:rgba(212,237,218,0.6);'
+                f'text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.35rem;">'
+                f'🤖 AI Agronomic Advisory</div>'
+                f'<div style="font-size:0.88rem;color:#d4edda;line-height:1.6;">{advisory}</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+    # ── Alert cards with AI-generated outbreak images ─────────────────────────
+    _LEVEL_STYLE = {
+        "high":          ("🔴", "#fdecea", "#c0392b", "HIGH RISK"),
+        "moderate":      ("🟡", "#fff8e1", _AMBER,    "MODERATE RISK"),
+        "low":           ("⚪", "#f5f5f5", "#888",    "LOW / WATCH"),
+        "spray_blocked": ("🚫", "#fff3e0", _AMBER,    "SPRAY BLOCKED"),
+    }
+
+    for a in sorted(alerts, key=lambda x: {"high": 0, "moderate": 1, "low": 2}.get(x["level"], 3)):
+        icon, bg, color, badge = _LEVEL_STYLE.get(a["level"], _LEVEL_STYLE["low"])
+        boost_note = (
+            f'<span style="font-size:0.72rem;color:{_GREEN};">▲ +{a["boost"]:.0%} receptivity boost applied</span>'
+            if a["boost"] > 0 else ""
+        )
+        risk_type   = a.get("type") or ""
+        crop        = a.get("crop", "")
+        disease_name = a["title"].split(" Risk")[0].split(" Surge")[0].strip()
+
+        # Left: AI outbreak image  |  Right: alert text
+        img_col, txt_col = st.columns([1, 3], gap="small")
+
+        with img_col:
+            if risk_type in ("fungal", "pest") and crop:
+                with st.spinner(f"Generating {disease_name} image…"):
+                    img_src = _disease_outbreak_image(risk_type, crop, disease_name)
+                if img_src:
+                    st.markdown(
+                        f'<img src="{img_src}" style="width:100%;border-radius:10px;'
+                        f'border:2px solid {color}33;object-fit:cover;max-height:140px;" />',
+                        unsafe_allow_html=True,
+                    )
+                else:
+                    # Emoji fallback when image generation unavailable
+                    emoji = "🍄" if risk_type == "fungal" else "🐛"
+                    st.markdown(
+                        f'<div style="background:{bg};border:2px solid {color}44;border-radius:10px;'
+                        f'height:120px;display:flex;align-items:center;justify-content:center;'
+                        f'font-size:3rem;">{emoji}</div>',
+                        unsafe_allow_html=True,
+                    )
+            else:
+                st.markdown(
+                    f'<div style="background:{bg};border:2px solid {color}44;border-radius:10px;'
+                    f'height:120px;display:flex;align-items:center;justify-content:center;'
+                    f'font-size:2.5rem;">🌿</div>',
+                    unsafe_allow_html=True,
+                )
+
+        with txt_col:
+            st.markdown(
+                f'<div style="background:{bg};border-left:4px solid {color};border-radius:0 10px 10px 0;'
+                f'padding:0.7rem 1rem;height:100%;box-sizing:border-box;">'
+                f'<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.15rem;">'
+                f'<span style="font-size:0.7rem;font-weight:700;color:{color};text-transform:uppercase;'
+                f'letter-spacing:0.05em;">{icon} {badge} · {risk_type}</span>'
+                f'</div>'
+                f'<div style="font-size:0.9rem;font-weight:600;color:#1a2520;margin-bottom:0.2rem;">{a["title"]}</div>'
+                f'<div style="font-size:0.82rem;color:#555;line-height:1.5;">{a["body"]}</div>'
+                f'<div style="margin-top:0.3rem;">{boost_note}</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+    # ── District-level hotspot map ─────────────────────────────────────────────
+    # Collect all district-level risk entries from segments (distinct entries only)
+    all_district_risks: list[dict] = []
+    seen_district_keys: set = set()
+    for seg in segs:
+        for dr in seg.get("district_risk_breakdown", []):
+            key = (dr["district"], dr.get("risk_type"), dr.get("risk_level"))
+            if key not in seen_district_keys:
+                seen_district_keys.add(key)
+                all_district_risks.append({**dr, "crop": seg.get("crop", ""), "state": seg.get("state", "")})
+
+    if all_district_risks:
+        st.markdown("**District-level Hotspots**")
+        st.caption(
+            "Each district is scored on its own weather data (not the state average). "
+            "Districts shown here have weather conditions that actively favour disease or pest pressure."
+        )
+        # Build a compact table
+        rows_html = ""
+        level_color = {"high": "#c0392b", "moderate": _AMBER}
+        level_icon  = {"high": "🔴", "moderate": "🟡"}
+        for dr in sorted(all_district_risks,
+                         key=lambda x: ({"high": 0, "moderate": 1}.get(x["risk_level"], 2),
+                                        -x["n_growers"])):
+            lc = level_color.get(dr["risk_level"], "#888")
+            li = level_icon.get(dr["risk_level"], "⚪")
+            src_badge = (
+                f'<span style="background:#f0f0f0;color:#777;border-radius:4px;'
+                f'padding:0px 4px;font-size:0.62rem;">{dr.get("weather_src","?")}</span>'
+            )
+            spray_note = (
+                '<span style="color:#c07a2b;font-size:0.68rem;"> · 🚫 spray blocked</span>'
+                if not dr.get("spray_ok", True) else ""
+            )
+            rows_html += (
+                f'<tr>'
+                f'<td style="padding:0.3rem 0.6rem;font-weight:600;color:{lc};">{li} {dr["district"]}</td>'
+                f'<td style="padding:0.3rem 0.6rem;color:#555;font-size:0.82rem;">'
+                f'{dr["state"]} · {dr["crop"].title()}</td>'
+                f'<td style="padding:0.3rem 0.6rem;font-size:0.82rem;color:#333;">'
+                f'{dr.get("alert_title","")}{spray_note}</td>'
+                f'<td style="padding:0.3rem 0.6rem;text-align:right;font-size:0.8rem;color:#666;">'
+                f'{dr["n_growers"]:,} growers &nbsp;{src_badge}</td>'
+                f'</tr>'
+            )
+        st.markdown(
+            f'<table style="width:100%;border-collapse:collapse;font-family:\'Space Grotesk\',sans-serif;">'
+            f'<thead><tr>'
+            f'<th style="padding:0.3rem 0.6rem;text-align:left;font-size:0.7rem;color:#888;'
+            f'text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid #e0ddd7;">District</th>'
+            f'<th style="padding:0.3rem 0.6rem;text-align:left;font-size:0.7rem;color:#888;'
+            f'text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid #e0ddd7;">Location · Crop</th>'
+            f'<th style="padding:0.3rem 0.6rem;text-align:left;font-size:0.7rem;color:#888;'
+            f'text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid #e0ddd7;">Alert</th>'
+            f'<th style="padding:0.3rem 0.6rem;text-align:right;font-size:0.7rem;color:#888;'
+            f'text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid #e0ddd7;">Growers</th>'
+            f'</tr></thead>'
+            f'<tbody>{rows_html}</tbody>'
+            f'</table>',
+            unsafe_allow_html=True,
+        )
+
+    # ── Spray window blocked notice ────────────────────────────────────────────
+    spray_states = {seg.get("state") for seg in spray_blocked if seg.get("state")}
+    if spray_states:
+        st.markdown(
+            f'<div style="background:#fff3e0;border-left:4px solid {_AMBER};border-radius:0 10px 10px 0;'
+            f'padding:0.6rem 1rem;margin-bottom:0.5rem;">'
+            f'<span style="font-size:0.7rem;font-weight:700;color:{_AMBER};">🚫 SPRAY WINDOW BLOCKED</span>'
+            f'<div style="font-size:0.82rem;color:#555;margin-top:0.2rem;">'
+            f'Poor spray conditions (rain / high wind) in: <strong>{", ".join(sorted(spray_states))}</strong>. '
+            f'Advise growers to wait for a suitable window before applying. '
+            f'Messaging for these segments has been adjusted.</div></div>',
+            unsafe_allow_html=True,
+        )
 
 
 def _render_segment_overview(segs: list[dict], reference_date, date_window: dict | None = None):
@@ -378,13 +638,146 @@ def _render_segment_overview(segs: list[dict], reference_date, date_window: dict
     ov1, ov2 = st.columns([3, 2])
     with ov1:
         st.markdown("**Campaign Timeline**")
+        st.caption("Each bar is one segment. Width = time until the next critical crop stage. Colour = crop type.")
         _render_timeline(segs, reference_date, campaign_end)
     with ov2:
         st.markdown("**Active States**")
+        st.caption("Bubble size = grower count in that state. Hover for exact numbers.")
         _render_geo_map(state_grower)
     if active_states:
         st.markdown("**Field Conditions**")
         _render_weather_cards(active_states)
+        st.markdown("**Disease & Pest Outbreak Alerts**")
+        st.caption(
+            "Derived from real-time weather — high humidity + rain = fungal risk; "
+            "hot + dry = pest surge. Alerts boost receptivity scores and adjust campaign messaging."
+        )
+        _render_disease_alerts(segs)
+
+
+# ── Segment "why" explanation helper ──────────────────────────────────────────
+def _segment_why_html(seg: dict) -> str:
+    """
+    Build a brief human-readable explanation card for a segment.
+    Uses segment metadata only — no extra API call.
+    """
+    crop    = seg.get("crop", "unknown").title()
+    state   = seg.get("state", "unknown")
+    channel = "WhatsApp" if seg.get("channel") == "whatsapp" else "rep field visit"
+    persona = seg.get("persona", "awareness").replace("_", " ").title()
+    product = seg.get("product", "")
+    count   = seg.get("grower_count", 0)
+    stage   = seg.get("stage_context", "")
+    score   = seg.get("avg_score", 0)
+    disease_level = seg.get("disease_risk_level", "none")
+    disease_title = seg.get("disease_alert_title", "")
+    agent_note    = seg.get("agent_note", "")
+    selection_reason = seg.get("product_selection_reason", "")
+    high_districts   = seg.get("high_risk_districts", [])
+
+    bullets = []
+
+    # Who — group identity
+    bullets.append(
+        f"<b>{count:,} {crop} growers</b> in {state} with similar growth stage "
+        f"and engagement profile, reachable via <b>{channel}</b>."
+    )
+
+    # Timing
+    if stage:
+        bullets.append(
+            f"Crop is at <b>{stage}</b> — product intervention now yields highest ROI."
+        )
+
+    # Product choice
+    if product:
+        reason_part = f" ({selection_reason})" if selection_reason else ""
+        bullets.append(f"Recommended product: <b>{product}</b>{reason_part}.")
+
+    # Disease / weather signal
+    if disease_level in ("high", "moderate"):
+        icon = "🔴" if disease_level == "high" else "🟡"
+        district_note = (
+            f" Hotspot districts: {', '.join(high_districts[:3])}." if high_districts else ""
+        )
+        bullets.append(
+            f"{icon} <b>{disease_level.title()} disease risk</b> — {disease_title}.{district_note} "
+            f"Urgency is elevated; messaging emphasises spray timing."
+        )
+
+    # Receptivity
+    score_pct = int(score * 100)
+    if score >= 0.50:
+        bullets.append(
+            f"Average receptivity is <b>{score_pct}%</b> — growers in this segment "
+            f"have strong prior engagement and are likely to convert."
+        )
+    elif score >= 0.35:
+        bullets.append(
+            f"Average receptivity is <b>{score_pct}%</b> — moderate engagement; "
+            f"personalised messaging can push conversion."
+        )
+
+    # AI agent tactical note
+    if agent_note:
+        bullets.append(f"🤖 <i>AI agent note:</i> {agent_note}")
+
+    items_html = "".join(f"<li>{b}</li>" for b in bullets)
+    return (
+        f'<div style="background:#f0f7f2;border-left:3px solid #2f7d4c;border-radius:0 10px 10px 0;'
+        f'padding:0.75rem 1rem 0.6rem;margin-bottom:0.9rem;">'
+        f'<div style="font-size:0.68rem;font-weight:700;color:#1a5c35;text-transform:uppercase;'
+        f'letter-spacing:0.07em;margin-bottom:0.4rem;">Why this segment?</div>'
+        f'<ul style="margin:0;padding-left:1.2rem;font-size:0.84rem;color:#1d2a22;line-height:1.65;">'
+        f'{items_html}</ul></div>'
+    )
+
+
+def _render_segment_cards(segs: list[dict]) -> None:
+    """Render each segment as an expander with a 'Why this segment?' explanation."""
+    _PERSONA_COLORS = {
+        "hot_lead": "#1a5c35", "pre_stage_alert": "#c07a2b",
+        "offline_reinforcement": "#5a4b8a", "awareness": "#2f7d4c",
+    }
+    for s in segs:
+        seg_id  = s.get("segment_id", "?")
+        crop    = s.get("crop", "").title()
+        state   = s.get("state", "")
+        persona = s.get("persona", "awareness")
+        channel = s.get("channel", "whatsapp")
+        product = s.get("product", "—")
+        count   = s.get("grower_count", 0)
+        score   = s.get("avg_score", 0)
+        disease = s.get("disease_risk_level", "none")
+
+        p_color = _PERSONA_COLORS.get(persona, "#2f7d4c")
+        ch_lbl  = "📱 Digital" if channel == "whatsapp" else "🤝 Rep Assist"
+        d_badge = ""
+        if disease == "high":
+            d_badge = ' <span style="background:#fdecea;color:#c0392b;border-radius:999px;padding:0.1rem 0.5rem;font-size:0.7rem;font-weight:600;">🔴 High risk</span>'
+        elif disease == "moderate":
+            d_badge = ' <span style="background:#fff8e1;color:#c07a2b;border-radius:999px;padding:0.1rem 0.5rem;font-size:0.7rem;font-weight:600;">🟡 Moderate risk</span>'
+
+        label = (
+            f"{seg_id} · {crop} / {state} · "
+            f"{persona.replace('_', ' ').title()} · {count:,} growers · "
+            f"{int(score*100)}% score"
+        )
+        with st.expander(label, expanded=False):
+            st.markdown(
+                f'<div style="display:flex;gap:0.45rem;flex-wrap:wrap;margin-bottom:0.6rem;">'
+                f'<span style="background:{p_color}22;color:{p_color};border-radius:999px;'
+                f'padding:0.1rem 0.55rem;font-size:0.72rem;font-weight:600;">'
+                f'{persona.replace("_"," ").title()}</span>'
+                f'<span style="background:#e8f5e9;color:#1a5c35;border-radius:999px;'
+                f'padding:0.1rem 0.55rem;font-size:0.72rem;">{ch_lbl}</span>'
+                f'<span style="background:#f0f0f0;color:#555;border-radius:999px;'
+                f'padding:0.1rem 0.55rem;font-size:0.72rem;">📦 {product}</span>'
+                f'{d_badge}'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+            st.markdown(_segment_why_html(s), unsafe_allow_html=True)
 
 
 # ── Content rendering helpers ──────────────────────────────────────────────────
@@ -398,6 +791,9 @@ def _status_badge(status: str) -> str:
     if status == "skipped":
         return ('<span style="background:#f0f0f0;color:#888;border-radius:5px;'
                 'padding:1px 7px;font-size:0.69rem;">— skipped</span>')
+    if status == "local":
+        return ('<span style="background:#e8f4ff;color:#1a5c8a;border-radius:5px;'
+                'padding:1px 7px;font-size:0.69rem;font-weight:600;">🎨 local</span>')
     return ('<span style="background:#f5f5f5;color:#aaa;border-radius:5px;'
             'padding:1px 7px;font-size:0.69rem;">✕ unavailable</span>')
 
@@ -467,7 +863,8 @@ def _copy_btn(text: str | None, key: str) -> None:
 def _find_unicode_font() -> str | None:
     """Find a system TTF font that supports Indian scripts (Devanagari, Gujarati, Gurmukhi, Bengali, Kannada)."""
     candidates = [
-        Path("C:/Windows/Fonts/Nirmala.ttf"),                                      # Windows 8+ — best coverage
+        Path("C:/Windows/Fonts/Nirmala.ttc"),                                      # Windows 8+ — best coverage
+        Path("C:/Windows/Fonts/Nirmala.ttf"),                                      # alternate name
         Path("C:/Windows/Fonts/mangal.ttf"),                                        # Windows XP+ Devanagari
         Path("/usr/share/fonts/truetype/freefont/FreeSans.ttf"),                    # Linux GNU FreeFont
         Path("/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf"),               # Linux Noto
@@ -588,7 +985,7 @@ def _render_streaming_segment(content: dict, seg: dict, seg_id: str) -> None:
         with c1:
             st.caption("📱 WhatsApp")
             _render_wa_card(content.get("whatsapp"), content.get("whatsapp_meta"),
-                            key=f"stw_{seg_id}")
+                            key=f"stw_{seg_id}", poster_content=content)
         with c2:
             st.caption("💬 SMS")
             _render_sms_card(content.get("sms"), content.get("sms_meta"),
@@ -599,14 +996,8 @@ def _render_streaming_segment(content: dict, seg: dict, seg_id: str) -> None:
         _render_ivr_card(content.get("ivr_script"), content.get("ivr_meta"),
                          "Field Visit Script", language=_lang, key_suffix=f"stf_{seg_id}")
 
-    poster_path = content.get("poster_file_path")
-    poster_url  = content.get("poster_image_url")
-    if poster_path and Path(poster_path).exists():
-        st.image(poster_path, caption="Campaign Poster", use_container_width=True)
-    elif poster_url:
-        st.image(poster_url, caption="Campaign Poster", use_container_width=True)
-    else:
-        st.caption("🖼 _Poster unavailable_")
+    st.caption("🖼 Poster")
+    _render_poster_section(content, key=f"stream_{seg_id}")
 
 
 def _run_streaming_generation(plan: dict, key_prefix: str) -> None:
@@ -685,12 +1076,96 @@ def _safe_html(text: str | None) -> str:
                 .replace(">", "&gt;").replace("\n", "<br>"))
 
 
-def _render_wa_card(text: str | None, meta: dict | None, key: str = "wa"):
-    """WhatsApp-style chat bubble card with copy button."""
+def _poster_img_src(content: dict) -> str | None:
+    """Return an <img src=...> value for the poster: data URI (from file) or plain URL."""
+    fpath = content.get("poster_file_path")
+    if fpath and Path(fpath).exists():
+        try:
+            img_bytes = Path(fpath).read_bytes()
+            b64 = base64.b64encode(img_bytes).decode()
+            return f"data:image/png;base64,{b64}"
+        except Exception:
+            pass
+    url = content.get("poster_image_url")
+    if url:
+        return url
+    return None
+
+
+def _render_poster_section(content: dict, key: str = "poster") -> None:
+    """Render the campaign poster at a fixed width with a download button beside it."""
+    poster_path = content.get("poster_file_path")
+    poster_url  = content.get("poster_image_url")
+    has_file    = poster_path and Path(poster_path).exists()
+
+    # Resolve image bytes (needed for download + st.image from URL)
+    img_bytes: bytes | None = None
+    display_src = None
+    if has_file:
+        try:
+            img_bytes   = Path(poster_path).read_bytes()
+            display_src = poster_path
+        except Exception:
+            pass
+    if not display_src and poster_url:
+        display_src = poster_url
+
+    if not display_src:
+        st.markdown(
+            f'<div style="border:1px dashed {_AMBER};border-radius:10px;padding:1.2rem;'
+            f'text-align:center;background:#fffaf4;">'
+            f'{_status_badge(content.get("poster_status","unknown"))}'
+            f'<div style="font-size:0.78rem;color:#999;margin-top:0.4rem;">Poster unavailable</div></div>',
+            unsafe_allow_html=True,
+        )
+        return
+
+    # Image (fixed width ~320 px, not full-width)
+    img_col, btn_col = st.columns([3, 1])
+    with img_col:
+        st.image(display_src, width=320)
+    with btn_col:
+        # Download button
+        fname = Path(poster_path).name if has_file else f"poster_{key}.png"
+        if img_bytes:
+            st.download_button(
+                "⬇ Download",
+                data=img_bytes,
+                file_name=fname,
+                mime="image/png",
+                key=f"dl_poster_{key}",
+                use_container_width=True,
+            )
+        st.markdown(_status_badge(content.get("poster_status", "unknown")),
+                    unsafe_allow_html=True)
+        if has_file:
+            st.caption(f"📁 `{fname}`")
+        prompt = content.get("poster_prompt_used", "")
+        if prompt:
+            st.caption(f"Prompt: {prompt[:160]}{'…' if len(prompt) > 160 else ''}")
+        gen_at = content.get("poster_generated_at", "")
+        if gen_at:
+            st.caption(f"Generated {gen_at[:16].replace('T', ' ')} UTC")
+
+
+def _render_wa_card(text: str | None, meta: dict | None, key: str = "wa",
+                    poster_content: dict | None = None):
+    """WhatsApp-style chat bubble card. If poster_content is given, shows the
+    campaign poster image at the top of the bubble, like a real WA marketing message."""
     if (meta or {}).get("status") == "skipped":
         st.caption("_Not applicable — rep-assist channel_")
         return
     body = _safe_html(text)
+
+    img_src = _poster_img_src(poster_content) if poster_content else None
+    img_html = (
+        f'<img src="{img_src}" style="width:100%;border-radius:8px 8px 0 0;'
+        f'display:block;margin-bottom:0;" />'
+        if img_src else ""
+    )
+    # Adjust bubble padding-top when image present so text sits right below image
+    bubble_pt = "0" if img_src else "10px"
+
     st.markdown(
         f"""<div class="kp-wa-phone">
   <div class="kp-wa-header">
@@ -699,7 +1174,9 @@ def _render_wa_card(text: str | None, meta: dict | None, key: str = "wa"):
     <div class="kp-wa-hstatus">online</div></div>
   </div>
   <div class="kp-wa-body">
-    <div class="kp-wa-bubble">{body}
+    <div class="kp-wa-bubble" style="padding-top:{bubble_pt};overflow:hidden;">
+      {img_html}
+      <div style="padding:{'8px 10px 4px' if img_src else '0 0 4px'};">{body}</div>
       <div class="kp-wa-foot">
         <span class="kp-wa-tick">✓✓</span>
       </div>
@@ -954,11 +1431,15 @@ def _render_content_variants():
 
     # ── Summary bar + PDF download ─────────────────────────────────────────────
     m1, m2, m3, m4, m5 = st.columns([2, 2, 2, 2, 3])
-    m1.metric("Segments", total)
-    m2.metric("Full Success", total - fallback_count)
+    m1.metric("Segments", total,
+              help="Number of targeting segments for which content was generated")
+    m2.metric("Full Success", total - fallback_count,
+              help="Segments where all content (WhatsApp, SMS, IVR) was AI-generated successfully")
     m3.metric("Partial Fallback", fallback_count,
-              delta_color="inverse" if fallback_count else "off")
-    m4.metric("Generated", variants.get("generated_at", "")[:10] or "—")
+              delta_color="inverse" if fallback_count else "off",
+              help="Segments that fell back to rule-based templates because AI generation failed")
+    m4.metric("Generated", variants.get("generated_at", "")[:10] or "—",
+              help="Date this content batch was generated")
     with m5:
         camp_name = (plan or {}).get("campaign_name", "campaign")
         pdf_bytes = _generate_pdf_bytes(all_v, seg_map, camp_name)
@@ -1003,7 +1484,7 @@ def _render_content_variants():
 
         with st.expander(f"{seg_id} · {crop} / {state} · {persona} · {lang}", expanded=False):
             st.markdown(header_html, unsafe_allow_html=True)
-            st.markdown("")
+            st.markdown(_segment_why_html(seg), unsafe_allow_html=True)
 
             _lang = content.get("language", "Hindi")
             if channel == "whatsapp":
@@ -1014,7 +1495,7 @@ def _render_content_variants():
                         'text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.4rem;">'
                         '📱 WhatsApp</div>', unsafe_allow_html=True)
                     _render_wa_card(content.get("whatsapp"), content.get("whatsapp_meta"),
-                                    key=seg_id)
+                                    key=seg_id, poster_content=content)
                 with col_sms:
                     st.markdown(
                         '<div style="font-size:0.7rem;font-weight:700;color:#1a5c35;'
@@ -1029,6 +1510,38 @@ def _render_content_variants():
                 _render_ivr_card(content.get("ivr_script"), content.get("ivr_meta"),
                                  "Field Visit Script", language=_lang, key_suffix=seg_id)
 
+            # ── Outbreak alert image (only for disease-affected segments) ─────
+            _risk_type  = seg.get("disease_risk_type")
+            _risk_level = seg.get("disease_risk_level", "none")
+            _alert_title = seg.get("disease_alert_title") or ""
+            if _risk_type in ("fungal", "pest") and _risk_level in ("high", "moderate"):
+                _disease_name = _alert_title.split(" Risk")[0].split(" Surge")[0].strip()
+                _seg_crop = seg.get("crop", "")
+                st.markdown("")
+                st.markdown(
+                    '<div style="font-size:0.72rem;font-weight:700;color:#c0392b;'
+                    'text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem;">'
+                    '🦠 Outbreak Alert Image</div>',
+                    unsafe_allow_html=True,
+                )
+                with st.spinner(f"Loading {_disease_name} image…"):
+                    _outbreak_img = _disease_outbreak_image(_risk_type, _seg_crop, _disease_name)
+                if _outbreak_img:
+                    _level_color = "#c0392b" if _risk_level == "high" else "#c07a2b"
+                    st.markdown(
+                        f'<div style="border:2px solid {_level_color}33;border-radius:12px;'
+                        f'overflow:hidden;margin-bottom:0.4rem;">'
+                        f'<img src="{_outbreak_img}" style="width:100%;display:block;'
+                        f'max-height:260px;object-fit:cover;" />'
+                        f'</div>'
+                        f'<div style="font-size:0.75rem;color:#888;margin-bottom:0.3rem;">'
+                        f'AI-generated field reference — {_disease_name} on {_seg_crop}. '
+                        f'Attach this to the WhatsApp message for visual context.</div>',
+                        unsafe_allow_html=True,
+                    )
+                else:
+                    st.caption(f"Outbreak image unavailable for {_disease_name}.")
+
             # Poster
             st.markdown("")
             st.markdown(
@@ -1037,35 +1550,7 @@ def _render_content_variants():
                 '🖼 Poster</div>',
                 unsafe_allow_html=True,
             )
-            url = content.get("poster_image_url")
-            if url:
-                pc1, pc2 = st.columns([2, 1])
-                with pc1:
-                    st.image(url, use_container_width=True)
-                with pc2:
-                    prompt = content.get("poster_prompt_used", "")
-                    if prompt:
-                        st.caption(f"**Prompt used:**\n{prompt[:200]}{'…' if len(prompt) > 200 else ''}")
-                    gen_at = content.get("poster_generated_at", "")
-                    if gen_at:
-                        st.caption(f"Generated {gen_at[:16].replace('T', ' ')} UTC")
-                    st.markdown(_status_badge(content.get("poster_status", "unknown")),
-                                unsafe_allow_html=True)
-            else:
-                ps_col, pp_col = st.columns([1, 2])
-                with ps_col:
-                    st.markdown(
-                        f'<div style="border:1px dashed {_AMBER};border-radius:10px;'
-                        f'padding:1.5rem;text-align:center;background:#fffaf4;">'
-                        f'{_status_badge(content.get("poster_status", "unknown"))}'
-                        f'<div style="font-size:0.78rem;color:#999;margin-top:0.5rem;">'
-                        f'Poster image unavailable</div></div>',
-                        unsafe_allow_html=True,
-                    )
-                with pp_col:
-                    prompt = content.get("poster_prompt_used", "")
-                    if prompt:
-                        st.caption(f"**Prompt used:**\n{prompt[:200]}{'…' if len(prompt) > 200 else ''}")
+            _render_poster_section(content, key=seg_id)
 
     st.divider()
     d1, d2 = st.columns(2)
@@ -1080,118 +1565,237 @@ def _render_content_variants():
 
 
 # ── Receptivity tab ───────────────────────────────────────────────────────────
-def _render_receptivity(crop_filter: str | None = None):
-    with st.spinner("Computing receptivity scores…"):
-        df = _scored_df()
-    wa = load_whatsapp()
-    if crop_filter:
-        crop_key = str(crop_filter).strip().lower()
-        crop_ids = (df[df["crop"].astype(str).str.lower() == crop_key]["grower_id"]
-                    if "crop" in df.columns else df["grower_id"])
-        df = df[df["grower_id"].isin(crop_ids)]
-        wa = (wa[wa["campaign_crop"].astype(str).str.lower() == crop_key]
-              if "campaign_crop" in wa.columns else wa)
-    if df.empty:
-        st.warning("No growers found for this crop filter in the scored dataset.")
+def _render_receptivity(plan: dict | None = None):
+    if not plan or not plan.get("segments"):
+        st.info("Run targeting first to see the receptivity breakdown for this campaign.")
         return
-    wa_df = wa.merge(
-        df[["grower_id", "receptivity_score", "state", "farm_tier", "timing_mode"]],
-        on="grower_id", how="left",
+
+    segs    = [s for s in plan["segments"] if s.get("inventory_ok", True)]
+    qs      = plan.get("quality_summary", {})
+    total   = qs.get("total_growers", plan.get("total_growers_scored", 0))
+    eligible = plan.get("total_eligible_pre_oos", 0)
+    oos_blocked = qs.get("oos_blocked_growers", 0)
+    targeted = sum(s["grower_count"] for s in segs)
+    below   = qs.get("below_threshold", total - eligible)
+
+    # ── Targeting funnel ──────────────────────────────────────────────────
+    st.markdown("### How this campaign's audience was selected")
+    st.caption(
+        "Every grower in the dataset was scored. Only those above the 0.30 receptivity "
+        "threshold and with product in stock made it into a segment."
     )
-    baseline_open = wa["opened_status"].mean() if len(wa) else 0
-    top_q       = df["receptivity_score"].quantile(0.75)
-    top_growers = df[df["receptivity_score"] >= top_q]["grower_id"]
-    top_wa      = wa[wa["grower_id"].isin(top_growers)]
-    top_open    = top_wa["opened_status"].mean() if len(top_wa) else 0
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Baseline Open Rate",     f"{baseline_open:.1%}")
-    c2.metric("Top-Quartile Open Rate", f"{top_open:.1%}", delta=f"+{top_open - baseline_open:.1%}")
-    c3.metric("Top-Quartile Growers",   len(top_growers))
-    st.caption("Retrospective validation using the same dataset window used for scoring.")
+
+    f1, f2, f3, f4 = st.columns(4)
+    f1.metric("Growers scored", f"{total:,}",
+              help="All growers matching this campaign's crop and state filters")
+    f2.metric("Above threshold", f"{eligible:,}",
+              delta=f"-{below:,} below 0.30",
+              delta_color="off",
+              help="Receptivity score ≥ 0.30 — the AI's minimum bar for campaign eligibility")
+    f3.metric("OOS blocked", f"{oos_blocked:,}",
+              delta=f"-{oos_blocked:,} inventory risk",
+              delta_color="off",
+              help="Product out-of-stock in the grower's nearest retailer territory")
+    f4.metric("In campaign", f"{targeted:,}",
+              delta=f"across {len(segs)} segments",
+              delta_color="off",
+              help="Growers actually included in a campaign segment")
+
     st.divider()
-    l1, r1 = st.columns(2)
-    with l1:
-        st.markdown("**Score Distribution**")
-        fig = px.histogram(df, x="receptivity_score", nbins=30, color_discrete_sequence=[_GREEN])
-        fig.add_vline(x=0.30, line_dash="dash", line_color=_AMBER, annotation_text="Threshold")
-        fig.update_layout(**_layout_with(xaxis_title="Receptivity Score", yaxis_title="Growers",
-                                         showlegend=False))
-        st.plotly_chart(fig, use_container_width=True)
-    with r1:
-        st.markdown("**Signal Contributions (Avg)**")
-        bds   = df["score_breakdown"].apply(lambda x: x.get("breakdown", {}) if isinstance(x, dict) else {})
-        bd_df = pd.DataFrame(list(bds)).mean().reset_index()
-        bd_df.columns = ["Signal", "Avg Contribution"]
-        bd_df = bd_df.sort_values("Avg Contribution", ascending=True)
-        fig2  = px.bar(bd_df, x="Avg Contribution", y="Signal", orientation="h",
-                       color_discrete_sequence=[_GREEN])
-        fig2.update_layout(**_layout_with())
-        st.plotly_chart(fig2, use_container_width=True)
-    l2, r2 = st.columns(2)
-    with l2:
-        st.markdown("**Open Rate by State**")
-        state_data = (wa_df.groupby("state").agg(open_rate=("opened_status", "mean"))
-                      .reset_index().sort_values("open_rate", ascending=False))
-        fig3 = px.bar(state_data, x="state", y="open_rate",
-                      color="open_rate",
-                      color_continuous_scale=[[0, "#d6ead9"], [1, _GREEN]],
-                      labels={"open_rate": "Open Rate", "state": "State"})
-        fig3.add_hline(y=baseline_open, line_dash="dash", line_color=_AMBER,
-                       annotation_text="Baseline")
-        fig3.update_layout(**_layout_with(xaxis_tickangle=-35))
-        st.plotly_chart(fig3, use_container_width=True)
-    with r2:
-        st.markdown("**Open Rate by Farm Size Tier**")
-        if "farm_tier" in df.columns:
-            tier_data = wa_df.groupby("farm_tier")["opened_status"].mean().reset_index()
-            tier_data.columns = ["Farm Size Tier", "Open Rate"]
-            fig4 = px.bar(tier_data, x="Farm Size Tier", y="Open Rate",
-                          color_discrete_sequence=["#3f9662"])
-            fig4.add_hline(y=baseline_open, line_dash="dash", line_color=_AMBER)
-            fig4.update_layout(**_layout_with())
-            st.plotly_chart(fig4, use_container_width=True)
-    l3, r3 = st.columns(2)
-    with l3:
-        st.markdown("**Channel Eligibility Split**")
-        ch_df = df["device_type"].value_counts().reset_index()
-        ch_df.columns = ["Device Type", "Count"]
-        fig5  = px.pie(ch_df, names="Device Type", values="Count",
-                       color_discrete_sequence=[_GREEN, "#88bb97", "#c7dcca"])
-        fig5.update_layout(**_layout_with())
-        st.plotly_chart(fig5, use_container_width=True)
-    with r3:
-        st.markdown("**Timing Mode Coverage**")
-        tm_df = df["timing_mode"].value_counts().reset_index()
-        tm_df.columns = ["Timing Mode", "Count"]
-        fig6  = px.pie(tm_df, names="Timing Mode", values="Count",
-                       color_discrete_sequence=[_GREEN, "#6ea781", "#d8e2d2"])
-        fig6.update_layout(**_layout_with())
-        st.plotly_chart(fig6, use_container_width=True)
+
+    # ── Segment breakdown ─────────────────────────────────────────────────
+    st.markdown("### Segment breakdown")
+    st.caption(
+        "Each bar is one campaign segment — the height shows grower count, "
+        "the colour shows average receptivity score. Higher score = more receptive audience."
+    )
+
+    seg_df = pd.DataFrame([{
+        "Segment": s["segment_id"],
+        "Label":   f"{s['crop'].title()} / {s['state']}",
+        "Growers": s["grower_count"],
+        "Avg Score": s.get("avg_score", 0),
+        "Persona": s.get("persona", "").replace("_", " ").title(),
+        "Channel": s.get("channel", ""),
+    } for s in segs])
+
+    fig_seg = px.bar(
+        seg_df.sort_values("Avg Score", ascending=False),
+        x="Label", y="Growers",
+        color="Avg Score",
+        color_continuous_scale=[[0, "#d6ead9"], [1, "#1a5c35"]],
+        hover_data={"Persona": True, "Channel": True, "Avg Score": ":.3f"},
+        text="Growers",
+    )
+    fig_seg.update_traces(textposition="outside")
+    fig_seg.update_layout(**_layout_with(
+        xaxis_title=None, yaxis_title="Growers in segment",
+        coloraxis_colorbar=dict(title="Avg score"),
+        xaxis_tickangle=-25,
+    ))
+    st.plotly_chart(fig_seg, use_container_width=True)
+
+    # ── What drove selection ───────────────────────────────────────────────
+    st.divider()
+    st.markdown("### What drove grower selection")
+    st.caption(
+        "The receptivity score is built from 7 signals. "
+        "The two biggest are **crop timing urgency** (is a critical growth stage approaching?) "
+        "and **state engagement history** (do farmers in this state historically respond?). "
+        "Product scan and past WhatsApp engagement are bonus signals — they push already-eligible "
+        "growers higher but aren't required."
+    )
+
+    _SIGNAL_EXPLAIN = [
+        ("Crop Timing Urgency",        "0–0.25", "How close is the next critical crop stage? The closer, the higher.",   _GREEN),
+        ("State Engagement History",   "0.07–0.15", "Historical WA response rates by state from past campaigns.",        "#5aa876"),
+        ("Farm Size",                  "0.06–0.10", "Smaller farms (1–2 ac) tend to engage more than large holdings.",   "#88bb97"),
+        ("Product Scan (hot-lead)",    "+0.06",  "Grower previously scanned this product — already product-aware.",      _AMBER),
+        ("Past WA Engagement",         "+0.05",  "Grower opened a previous WhatsApp campaign.",                          "#c07a2b"),
+        ("Cross-Channel Fatigue",      "−0.08",  "Grower attended offline event AND scanned — risk of over-contact.",    "#e05252"),
+        ("Gender Signal",              "+0.02",  "Female farmers show slightly higher response rates in this dataset.",  "#6b7280"),
+    ]
+
+    for label, weight, explain, color in _SIGNAL_EXPLAIN:
+        st.markdown(
+            f'<div style="display:flex;align-items:baseline;gap:0.6rem;margin-bottom:0.4rem;">'
+            f'<span style="width:10px;height:10px;border-radius:50%;background:{color};'
+            f'flex-shrink:0;display:inline-block;margin-top:3px;"></span>'
+            f'<span style="font-size:0.88rem;font-weight:600;color:#1a2520;min-width:220px;">'
+            f'{label}</span>'
+            f'<span style="font-size:0.78rem;color:{color};font-weight:700;min-width:60px;">'
+            f'{weight}</span>'
+            f'<span style="font-size:0.82rem;color:#555;">{explain}</span>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+    # ── Data quality note ─────────────────────────────────────────────────
+    missing_cal = qs.get("missing_calendar", 0)
+    if missing_cal > 0:
+        st.divider()
+        st.warning(
+            f"**Data quality note:** {missing_cal:,} growers had no crop calendar — "
+            "timing urgency defaulted to 0.25 (moderate) for them. "
+            "Scores for these growers are less reliable."
+        )
 
 
 # ── Rep Briefing tab ───────────────────────────────────────────────────────────
-def _render_rep_briefing_tab(campaign_path: str | None = None):
+def _action_card(action: dict) -> None:
+    """Render one priority action as a colour-coded card."""
+    atype = action["type"]
+    rank  = action["rank"]
+
+    if atype == "rep_assist_campaign":
+        accent = _GREEN
+        icon   = "🌾"
+        label  = "Assisted Campaign"
+        title  = f"{action.get('crop', '').title()} — {action.get('persona', '').replace('_', ' ').title()}"
+        lines  = [
+            f"**Product:** {action.get('product')}",
+            f"**Growers to visit:** {action.get('grower_count')}",
+            f"**Tehsils:** {', '.join(action.get('tehsils', []))}",
+        ]
+    elif atype == "restock_alert":
+        accent = _AMBER
+        icon   = "📦"
+        label  = "Restock Alert"
+        wks    = action.get("weeks_until_oos", "?")
+        title  = f"{action.get('sku')} — {wks} week{'s' if wks != 1 else ''} until OOS"
+        lines  = [
+            f"**Avg stock:** {action.get('avg_stock')} units",
+            f"**Depletion trend:** {action.get('trend_slope')} units/week",
+        ]
+    else:
+        accent = "#6b7280"
+        icon   = "📍"
+        label  = "Visit Gap"
+        days   = action.get("days_since_visit", "?")
+        title  = f"{action.get('tehsil')} — {days} days since last visit"
+        lines  = []
+
+    st.markdown(
+        f'<div style="border-left:4px solid {accent};background:#fafaf8;'
+        f'border-radius:0 10px 10px 0;padding:0.7rem 1rem;margin-bottom:0.5rem;">'
+        f'<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.2rem;">'
+        f'<span style="background:{accent};color:#fff;border-radius:50%;width:22px;height:22px;'
+        f'display:inline-flex;align-items:center;justify-content:center;font-size:0.72rem;'
+        f'font-weight:700;flex-shrink:0;">#{rank}</span>'
+        f'<span style="font-size:0.7rem;font-weight:700;color:{accent};text-transform:uppercase;'
+        f'letter-spacing:0.05em;">{icon} {label}</span></div>'
+        f'<div style="font-size:0.9rem;font-weight:600;color:#1a2520;margin-bottom:0.2rem;">'
+        f'{title}</div>'
+        + "".join(
+            f'<div style="font-size:0.82rem;color:#555;margin-top:0.1rem;">{l}</div>'
+            for l in lines
+        )
+        + "</div>",
+        unsafe_allow_html=True,
+    )
+
+
+def _render_rep_briefing_tab(plan: dict | None = None, campaign_path: str | None = None):
     _INV_LAYOUT = dict(
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         margin=dict(l=10, r=10, t=30, b=10),
         font=dict(color="#1d2a22", family="Space Grotesk"),
     )
 
-    reps    = load_reps()
+    all_reps = load_reps()
+
+    # Require a generated plan to filter reps meaningfully
+    if not plan or not plan.get("segments"):
+        st.markdown(
+            '<div style="border:1px dashed #c8c0b0;border-radius:16px;padding:3rem 2rem;'
+            'text-align:center;background:#fafaf7;color:#888;">'
+            '<div style="font-size:1.6rem;margin-bottom:0.6rem;">👥</div>'
+            '<div style="font-weight:600;margin-bottom:0.4rem;color:#555;">No targeting plan yet</div>'
+            '<div style="font-size:0.88rem;">Generate the targeting plan first — the rep list '
+            'will then show only the field reps whose territories cover this campaign\'s growers.</div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+        return
+
+    # Filter to reps whose state appears in this campaign's segments
+    campaign_states = {s["state"] for s in plan["segments"] if s.get("state")}
+    reps = all_reps[all_reps["state"].isin(campaign_states)].copy()
+    if reps.empty:
+        st.warning(
+            f"No reps found for campaign states: {', '.join(sorted(campaign_states))}. "
+            "Showing all reps as fallback."
+        )
+        reps = all_reps
+
     rep_ids = sorted(reps["rep_id"].tolist())
+    if not rep_ids:
+        st.info("No reps found for this campaign's states.")
+        return
 
     left, main = st.columns([1, 3], gap="large")
     with left:
-        st.markdown("#### Parameters")
-        rep_id = st.selectbox("Select Rep", rep_ids, key="rb_rep_select")
-        reference_date = st.date_input("Reference Date", value=date(2026, 1, 15),
+        st.markdown("#### Select Rep")
+        st.caption(
+            f"Showing {len(rep_ids)} rep{'s' if len(rep_ids) != 1 else ''} "
+            f"covering: {', '.join(sorted(campaign_states))}"
+        )
+        rep_id = st.selectbox("Rep ID", rep_ids, key="rb_rep_select", label_visibility="collapsed")
+        rep_row_preview = reps[reps["rep_id"] == rep_id].iloc[0]
+        st.caption(
+            f"**Territory:** {rep_row_preview['territory_name']}  \n"
+            f"**State:** {rep_row_preview['state']}  \n"
+            f"**District:** {rep_row_preview['district']}"
+        )
+        reference_date = st.date_input("Reference Date", value=date.today(),
                                        key="rb_ref_date")
         st.markdown("")
         gen_clicked = st.button("Generate Briefing", type="primary",
                                 use_container_width=True, key="rb_gen_btn")
+        st.caption("The AI analyses stock risk, visit gaps, and offline growers for this territory.")
 
     if gen_clicked:
-        with st.spinner(f"Analyzing territory and generating briefing for {rep_id}…"):
+        with st.spinner(f"Analysing territory for {rep_id}…"):
             result = run_rep_briefing(rep_id, reference_date,
                                       targeting_plan_path=campaign_path)
             st.session_state.rep_briefing_result = result.get(rep_id, {})
@@ -1206,125 +1810,173 @@ def _render_rep_briefing_tab(campaign_path: str | None = None):
                 '<div style="font-size:2.5rem;margin-bottom:0.8rem;">🗺️</div>'
                 '<div style="font-size:1rem;font-weight:600;color:#555;">Select a rep and click '
                 '<strong>Generate Briefing</strong></div>'
-                '<div style="font-size:0.85rem;margin-top:0.4rem;">The AI will compute stock risk, '
-                'visit gaps, and offline growers for this territory.</div></div>',
+                '<div style="font-size:0.85rem;margin-top:0.4rem;">Takes ~10 seconds. '
+                'Covers stock risk, visit gaps, and offline growers.</div></div>',
                 unsafe_allow_html=True,
             )
         else:
             briefing = st.session_state.rep_briefing_result
             rep_row  = reps[reps["rep_id"] == rep_id].iloc[0]
-            st.subheader(f"{rep_id} — {rep_row['territory_name']} "
-                         f"({rep_row['state']}, {rep_row['district']})")
+            actions  = briefing.get("priority_actions", [])
+            restock  = [a for a in actions if a["type"] == "restock_alert"]
+            gap      = [a for a in actions if a["type"] == "visit_gap"]
+            campaign_actions = [a for a in actions if a["type"] == "rep_assist_campaign"]
+            n_offline = briefing.get("offline_growers_count", 0)
 
-            actions = briefing.get("priority_actions", [])
-            restock = [a for a in actions if a["type"] == "restock_alert"]
-            gap     = [a for a in actions if a["type"] == "visit_gap"]
+            # ── Header ────────────────────────────────────────────────────
+            st.markdown(
+                f'<div style="background:linear-gradient(135deg,#1a3d28,#2f7d4c);'
+                f'border-radius:12px;padding:1rem 1.4rem;margin-bottom:1rem;">'
+                f'<div style="color:#fff;font-size:1.1rem;font-weight:700;">'
+                f'{rep_id} — {rep_row["territory_name"]}</div>'
+                f'<div style="color:rgba(255,255,255,0.72);font-size:0.85rem;margin-top:0.2rem;">'
+                f'{rep_row["state"]} · {rep_row["district"]}</div></div>',
+                unsafe_allow_html=True,
+            )
 
-            c1, c2, c3, c4 = st.columns(4)
-            c1.metric("Total Actions",   len(actions))
-            c2.metric("Restock Alerts",  len(restock))
-            c3.metric("Visit Gaps",      len(gap))
-            c4.metric("Offline Growers", briefing.get("offline_growers_count", 0),
-                      help="Non-smartphone growers who need in-person or assisted outreach")
-
-            st.subheader("This Week's Briefing")
-            st.info(briefing.get("briefing_text", "-"))
-
+            # ── Snapshot metrics ──────────────────────────────────────────
+            m1, m2, m3, m4 = st.columns(4)
+            m1.metric("Campaign Actions", len(campaign_actions),
+                      help="Grower segments this rep should visit in-person for assisted sales")
+            m2.metric("Restock Alerts", len(restock),
+                      help="Products approaching out-of-stock in this territory")
+            m3.metric("Visit Gaps", len(gap),
+                      help="Tehsils that haven't had a rep visit in over 30 days")
+            m4.metric("Offline Growers", n_offline,
+                      help="Non-smartphone growers who can't receive WhatsApp — need direct visit")
             st.divider()
-            st.subheader("Priority Actions")
-            for action in actions:
-                atype = action["type"]
-                rank  = action["rank"]
-                if atype == "rep_assist_campaign":
-                    title = (f"#{rank} Assisted Campaign — "
-                             f"{action.get('crop', '').title()} ({action.get('persona', '')})")
-                    body  = (f"**Product:** {action.get('product')}  \n"
-                             f"**Growers to visit:** {action.get('grower_count')}  \n"
-                             f"**Tehsils:** {', '.join(action.get('tehsils', []))}")
-                elif atype == "restock_alert":
-                    title = f"#{rank} Restock Alert — {action.get('sku')}"
-                    body  = (f"**Estimated weeks until OOS:** {action.get('weeks_until_oos')}  \n"
-                             f"**Average stock:** {action.get('avg_stock')} units  \n"
-                             f"**Trend:** {action.get('trend_slope')} units/week")
-                else:
-                    title = f"#{rank} Visit Gap — {action.get('tehsil')}"
-                    body  = f"**Days since last visit:** {action.get('days_since_visit')}"
-                with st.expander(title, expanded=rank <= 3):
-                    st.markdown(body)
 
-            if briefing.get("offline_growers_count", 0) > 0:
+            # ── AI Briefing ───────────────────────────────────────────────
+            st.markdown("### This Week's Field Briefing")
+            st.markdown(
+                f'<div style="background:#f0f7f2;border-left:4px solid {_GREEN};'
+                f'border-radius:0 12px 12px 0;padding:1rem 1.2rem;'
+                f'font-size:0.92rem;line-height:1.7;color:#1a2520;">'
+                f'{_safe_html(briefing.get("briefing_text", "—")).replace("<br>", "<br>")}'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+            st.divider()
+
+            # ── Priority Actions ──────────────────────────────────────────
+            st.markdown("### Priority Actions")
+            if not actions:
+                st.caption("No priority actions generated.")
+            else:
+                # Group by type with a sub-heading each
+                for group_label, group_icon, group_list in [
+                    ("Campaign Visits", "🌾", campaign_actions),
+                    ("Restock Alerts", "📦", restock),
+                    ("Visit Gaps", "📍", gap),
+                ]:
+                    if not group_list:
+                        continue
+                    st.markdown(
+                        f'<div style="font-size:0.78rem;font-weight:700;color:#555;'
+                        f'text-transform:uppercase;letter-spacing:0.06em;'
+                        f'margin:0.8rem 0 0.3rem;">{group_icon} {group_label}</div>',
+                        unsafe_allow_html=True,
+                    )
+                    for action in group_list:
+                        _action_card(action)
+
+            # ── Offline Growers ───────────────────────────────────────────
+            if n_offline > 0:
                 st.divider()
-                st.subheader("Offline Growers (Non-Smartphone)")
-                growers = load_growers()
+                st.markdown(f"### Offline Growers — {n_offline} need direct visit")
+                st.caption(
+                    "These growers don't have smartphones. They won't receive WhatsApp or SMS. "
+                    "Your visit IS their campaign touchpoint."
+                )
+                growers     = load_growers()
                 tehsil_list = rep_row["tehsil_list"]
                 offline = growers[
                     growers["tehsil"].isin(tehsil_list) & (growers["device_type"] != "smartphone")
-                ][["grower_id", "tehsil", "device_type", "grower_crop_calendar",
-                   "grower_farm_size"]].copy()
+                ].copy()
                 offline["crop"] = offline["grower_crop_calendar"].apply(
                     lambda x: x.get("crop", "-") if isinstance(x, dict) else "-"
                 )
+                # Summary badges by tehsil
+                tehsil_counts = offline["tehsil"].value_counts()
+                badges = " ".join(
+                    f'<span style="background:#f0f7f2;border:1px solid {_GREEN};'
+                    f'border-radius:6px;padding:2px 10px;color:{_GREEN};font-size:0.82rem;'
+                    f'margin-right:4px;">{t} ({n})</span>'
+                    for t, n in tehsil_counts.items()
+                )
+                st.markdown(
+                    f'<div style="margin-bottom:0.6rem;">{badges}</div>',
+                    unsafe_allow_html=True,
+                )
                 st.dataframe(
-                    offline[["grower_id", "tehsil", "crop", "device_type", "grower_farm_size"]],
+                    offline[["grower_id", "tehsil", "crop", "device_type",
+                              "grower_farm_size"]].rename(columns={
+                        "grower_id": "Grower", "tehsil": "Tehsil", "crop": "Crop",
+                        "device_type": "Device", "grower_farm_size": "Farm (ac)",
+                    }),
                     use_container_width=True, hide_index=True,
                 )
 
-    # ── Inventory Intelligence (collapsible) ───────────────────────────────────
+    # ── Inventory Intelligence ─────────────────────────────────────────────────
     st.divider()
-    with st.expander("📦 Inventory Intelligence", expanded=False):
-        st.caption("Stock health, OOS risk, and depletion trends across 4,000 retailers.")
+    with st.expander("📦 Territory Inventory Intelligence", expanded=False):
+        st.caption(
+            "Stock health and OOS risk across retailers. "
+            "Use this to pre-empt restock conversations before they become lost sales."
+        )
         try:
             inv = _load_inv_insights()
         except Exception as e:
             st.warning(f"Inventory data unavailable: {e}")
             return
         _PALETTE = ["#2f7d4c", "#5aa876", "#88bb97", "#c07a2b", "#e8a85b", "#1a5c35"]
+
         mi1, mi2, mi3, mi4 = st.columns(4)
-        mi1.metric("Total SKUs",         inv["unique_skus"])
-        mi2.metric("Total Retailers",    f"{inv['unique_retailers']:,}")
-        mi3.metric("Total OOS Events",   f"{inv['total_oos_events']:,}")
-        mi4.metric("Retailers with OOS", f"{inv['retailers_with_any_oos']:,}")
+        mi1.metric("SKUs Tracked",       inv["unique_skus"],
+                   help="Distinct product SKUs with inventory data in this territory")
+        mi2.metric("Retailers Covered",  f"{inv['unique_retailers']:,}",
+                   help="Retail outlets with at least one stock record in the dataset")
+        mi3.metric("Total OOS Events",   f"{inv['total_oos_events']:,}",
+                   help="Total weekly out-of-stock incidents across all SKUs and retailers")
+        mi4.metric("Retailers with OOS", f"{inv['retailers_with_any_oos']:,}",
+                   help="Retailers that had at least one out-of-stock event — indicates supply chain gaps")
 
-        # Nested st.tabs inside a tab aren't supported — use expanders instead
-        with st.expander("📉 OOS Risk", expanded=True):
-            cl, cr = st.columns(2, gap="medium")
-            with cl:
-                st.markdown("**OOS Rate (%) by SKU**")
-                oos_rate = inv["oos_rate_by_sku"]
-                oos_df   = (pd.DataFrame({"sku": list(oos_rate.keys()),
-                                          "oos_rate": list(oos_rate.values())})
-                            .sort_values("oos_rate", ascending=True))
-                mean_oos = float(pd.Series(list(oos_rate.values())).mean())
-                fig_oos  = go.Figure()
-                fig_oos.add_trace(go.Bar(x=oos_df["oos_rate"], y=oos_df["sku"],
-                                         orientation="h", marker_color="#c07a2b"))
-                fig_oos.add_vline(x=mean_oos, line_dash="dash", line_color="#1a5c35",
-                                  annotation_text=f"Mean {mean_oos:.1f}%",
-                                  annotation_position="top right",
-                                  annotation_font_color="#1a5c35")
-                fig_oos.update_layout(**_INV_LAYOUT, xaxis_title="OOS Rate (%)",
-                                      yaxis_title=None, showlegend=False)
-                st.plotly_chart(fig_oos, use_container_width=True,
-                                config={"displayModeBar": False})
-            with cr:
-                st.markdown("**Avg Stock Level by SKU**")
-                avg_stock   = inv["avg_stock_by_sku"]
-                at_risk_set = set(inv["at_risk_skus"])
-                avg_df      = (pd.DataFrame({"sku": list(avg_stock.keys()),
-                                             "avg_qty": list(avg_stock.values())})
-                               .sort_values("avg_qty", ascending=True))
-                bar_colors  = ["#c07a2b" if sku in at_risk_set else "#2f7d4c"
-                               for sku in avg_df["sku"]]
-                fig_avg = go.Figure()
-                fig_avg.add_trace(go.Bar(x=avg_df["avg_qty"], y=avg_df["sku"],
-                                         orientation="h", marker_color=bar_colors))
-                fig_avg.update_layout(**_INV_LAYOUT, xaxis_title="Avg Qty (units)",
-                                      yaxis_title=None, showlegend=False)
-                st.plotly_chart(fig_avg, use_container_width=True,
-                                config={"displayModeBar": False})
-                st.caption("Orange bars = at-risk SKUs")
+        at_risk_set = set(inv["at_risk_skus"])
+        if at_risk_set:
+            badges = " ".join(
+                f'<span style="background:#fff3e0;border:1px solid {_AMBER};'
+                f'border-radius:6px;padding:2px 10px;color:{_AMBER};font-size:0.82rem;'
+                f'margin-right:4px;">⚠️ {s}</span>' for s in at_risk_set
+            )
+            st.markdown(
+                f'<div style="margin:0.4rem 0 0.8rem;"><strong>At-risk SKUs:</strong> {badges}</div>',
+                unsafe_allow_html=True,
+            )
 
-        with st.expander("📈 Stock Trends", expanded=False):
+        cl, cr = st.columns(2, gap="medium")
+        with cl:
+            st.markdown("**OOS Rate by SKU** — how often each product was out of stock")
+            st.caption("Amber bars = at-risk SKUs. Dashed line = average OOS rate. Higher = more supply disruptions.")
+            oos_rate = inv["oos_rate_by_sku"]
+            oos_df   = (pd.DataFrame({"sku": list(oos_rate.keys()),
+                                      "oos_rate": list(oos_rate.values())})
+                        .sort_values("oos_rate", ascending=True))
+            mean_oos = float(pd.Series(list(oos_rate.values())).mean())
+            fig_oos  = go.Figure()
+            fig_oos.add_trace(go.Bar(
+                x=oos_df["oos_rate"], y=oos_df["sku"], orientation="h",
+                marker_color=["#c07a2b" if s in at_risk_set else _GREEN for s in oos_df["sku"]],
+            ))
+            fig_oos.add_vline(x=mean_oos, line_dash="dash", line_color="#555",
+                              annotation_text=f"Avg {mean_oos:.1f}%",
+                              annotation_font_color="#555")
+            fig_oos.update_layout(**_INV_LAYOUT, xaxis_title="OOS Rate (%)",
+                                  yaxis_title=None, showlegend=False)
+            st.plotly_chart(fig_oos, use_container_width=True, config={"displayModeBar": False})
+
+        with cr:
+            st.markdown("**Weekly stock trend** — depletion over the last 8 weeks")
+            st.caption("Falling lines mean stock is being depleted. A steep drop approaching zero signals an OOS risk.")
             sku_weekly = inv["sku_weekly_avg"]
             fig_trend  = go.Figure()
             for idx, (sku, week_data) in enumerate(sku_weekly.items()):
@@ -1336,28 +1988,16 @@ def _render_rep_briefing_tab(campaign_path: str | None = None):
                     marker=dict(size=5),
                 ))
             inv_lt = dict(_INV_LAYOUT)
-            inv_lt.update(dict(title="Weekly Average Stock by SKU",
-                               xaxis_title="Week End Date", yaxis_title="Avg Qty (units)",
-                               legend=dict(orientation="h", yanchor="bottom", y=1.02,
-                                           xanchor="left", x=0),
-                               margin=dict(l=10, r=10, t=60, b=10)))
+            inv_lt.update(dict(
+                yaxis_title="Avg Qty (units)",
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0, font=dict(size=10)),
+                margin=dict(l=10, r=10, t=40, b=10),
+            ))
             fig_trend.update_layout(**inv_lt)
-            st.plotly_chart(fig_trend, use_container_width=True,
-                            config={"displayModeBar": False})
-            at_risk = inv["at_risk_skus"]
-            if at_risk:
-                badges = " ".join(
-                    f'<span style="background:#fff3e0;border:1px solid #c07a2b;'
-                    f'border-radius:6px;padding:2px 10px;color:#c07a2b;font-size:0.82rem;'
-                    f'margin-right:4px;">⚠️ {s}</span>' for s in at_risk
-                )
-                st.markdown(
-                    f'<div style="margin-top:0.5rem;"><strong style="color:#1d2a22;">'
-                    f'At-Risk SKUs: </strong>{badges}</div>',
-                    unsafe_allow_html=True,
-                )
+            st.plotly_chart(fig_trend, use_container_width=True, config={"displayModeBar": False})
 
-        with st.expander("🔥 Risk Heatmap", expanded=False):
+        with st.expander("🔥 OOS Risk Heatmap — SKU × Week", expanded=False):
+            st.caption("Red cells = high out-of-stock rate that week. Use this to spot recurring problem SKUs and problem periods before they hit the field.")
             heatmap_data = inv["oos_heatmap"]
             skus_hm      = list(heatmap_data.keys())
             all_hm_weeks = sorted({w for sd in heatmap_data.values() for w in sd.keys()})
@@ -1370,13 +2010,10 @@ def _render_rep_briefing_tab(campaign_path: str | None = None):
                 hoverongaps=False,
                 hovertemplate="SKU: %{y}<br>Week: %{x}<br>OOS Rate: %{z:.1f}%<extra></extra>",
             ))
-            inv_lh = dict(_INV_LAYOUT)
-            inv_lh.update(dict(title="OOS Rate (%) by SKU × Week",
-                               xaxis_title="Week End Date", yaxis_title=None,
-                               margin=dict(l=10, r=10, t=50, b=10)))
-            fig_hm.update_layout(**inv_lh)
-            st.plotly_chart(fig_hm, use_container_width=True,
-                            config={"displayModeBar": False})
+            _hm_layout = {**_INV_LAYOUT, "margin": dict(l=10, r=10, t=20, b=10)}
+            fig_hm.update_layout(**_hm_layout,
+                                 xaxis_title="Week End Date", yaxis_title=None)
+            st.plotly_chart(fig_hm, use_container_width=True, config={"displayModeBar": False})
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1528,10 +2165,14 @@ box-shadow:0 16px 48px rgba(47,125,76,0.24);position:relative;overflow:hidden;">
 
     # Key metrics
     s1, s2, s3, s4 = st.columns(4)
-    s1.metric("Total Campaigns",   len(digital) + len(saved_camps))
-    s2.metric("Total Impressions", _fmt(funnel_df["social_post_impression"].sum()))
-    s3.metric("Total Visits",      _fmt(funnel_df["landing_page_visits"].sum()))
-    s4.metric("Total Leads",       _fmt(funnel_df["lead_form_submission"].sum()))
+    s1.metric("Total Campaigns",   len(digital) + len(saved_camps),
+              help="Digital campaigns from dataset + AI campaigns created in this tool")
+    s2.metric("Total Impressions", _fmt(funnel_df["social_post_impression"].sum()),
+              help="Sum of social media ad impressions across all digital campaigns")
+    s3.metric("Total Visits",      _fmt(funnel_df["landing_page_visits"].sum()),
+              help="Landing page visits driven by digital campaign ads")
+    s4.metric("Total Leads",       _fmt(funnel_df["lead_form_submission"].sum()),
+              help="Lead form submissions — growers who expressed direct interest")
 
     st.markdown("<div style='margin-top:1.2rem;'></div>", unsafe_allow_html=True)
 
@@ -1689,10 +2330,12 @@ box-shadow:0 12px 36px rgba(47,125,76,0.2);">
                     yaxis=dict(visible=True, showgrid=True, gridcolor="rgba(0,0,0,0.05)"),
                     showlegend=False, xaxis_title="Week", yaxis_title="Impressions",
                 ))
+                st.caption("Weekly social ad impressions over the campaign's run. Peaks indicate high-reach weeks.")
                 st.plotly_chart(fig_sp, use_container_width=True, config={"displayModeBar": False})
 
             with ov2:
                 st.markdown("**Active States**")
+                st.caption("Bubble size = grower count. Hover for exact numbers.")
                 _render_geo_map(grower_state_map)
         elif weeks_ts:
             # No grower-state data — show timeline only (full width)
@@ -1717,6 +2360,7 @@ box-shadow:0 12px 36px rgba(47,125,76,0.2);">
                 yaxis=dict(visible=True, showgrid=True, gridcolor="rgba(0,0,0,0.05)"),
                 showlegend=False, xaxis_title="Week", yaxis_title="Impressions",
             ))
+            st.caption("Weekly social ad impressions over the campaign's run. Peaks indicate high-reach weeks.")
             st.plotly_chart(fig_sp, use_container_width=True, config={"displayModeBar": False})
 
         if grower_state_map:
@@ -1750,9 +2394,21 @@ box-shadow:0 12px 36px rgba(47,125,76,0.2);">
             growers_df    = load_growers()
             unique_states = sorted(growers_df["state"].dropna().unique().tolist())
             f1, f2 = st.columns(2)
-            ref_date  = f1.date_input("Reference Date", value=REFERENCE_DATE, key=f"date_{view}")
-            state_sel = f2.selectbox("State", ["All"] + unique_states, key=f"state_{view}")
-            state_arg = None if state_sel == "All" else state_sel
+            ref_date = f1.date_input("Reference Date", value=REFERENCE_DATE, key=f"date_{view}")
+            with f2:
+                all_states_dig = st.checkbox(
+                    "All states", value=True, key=f"all_states_{view}",
+                    help="Target every state — uncheck to narrow to specific states",
+                )
+                if all_states_dig:
+                    st.caption(f"Targeting all {len(unique_states)} states")
+                    state_sel = []
+                else:
+                    state_sel = st.multiselect(
+                        "Select states", unique_states, key=f"state_{view}",
+                        placeholder="Choose one or more states",
+                    )
+            state_arg = state_sel if state_sel else None
             if st.button("Build Targeting Plan", type="primary",
                          use_container_width=True, key=f"build_{view}"):
                 with st.spinner("Scoring growers…"):
@@ -1774,10 +2430,14 @@ box-shadow:0 12px 36px rgba(47,125,76,0.2);">
             segs_plan = plan.get("segments", [])
             qs_plan   = plan.get("quality_summary", {})
             p1, p2, p3, p4 = st.columns(4)
-            p1.metric("Growers Scored",  qs_plan.get("total_growers", "—"))
-            p2.metric("Eligible",        plan.get("total_eligible", "—"))
-            p3.metric("Segments",        len(segs_plan))
-            p4.metric("OOS Blocked",     len(plan.get("oos_blocked", [])))
+            p1.metric("Growers Scored",  qs_plan.get("total_growers", "—"),
+                      help="Total growers evaluated after applying crop and state filters")
+            p2.metric("Eligible",        plan.get("total_eligible", "—"),
+                      help="Growers above the 0.30 receptivity threshold with product in stock")
+            p3.metric("Segments",        len(segs_plan),
+                      help="Targeting groups — each segment gets its own multilingual content")
+            p4.metric("OOS Blocked",     len(plan.get("oos_blocked", [])),
+                      help="Grower groups excluded because their nearest retailer has out-of-stock risk")
 
             # ── Step 2: Scope preview + Promoter + Generate ───────────────────
             st.markdown("#### Content Scope")
@@ -1787,33 +2447,23 @@ box-shadow:0 12px 36px rgba(47,125,76,0.2);">
             if not variants:
                 if st.button("Generate Multilingual Content →", type="primary",
                              use_container_width=True, key=f"gen_{view}"):
-                    with st.spinner("Generating content for all segments…"):
-                        st.session_state.content_variants = run_content_generation(
-                            plan,
-                            promoter_image_b64=st.session_state.get("promoter_image_b64"),
-                        )
-                        _persist_variants(st.session_state.content_variants)
-                    st.rerun()
+                    _run_streaming_generation(plan, key_prefix=f"dig_{view}")
             else:
                 rc1, rc2 = st.columns([4, 1])
                 rc1.success(f"Content generated for {len(variants.get('variants', {}))} segments.")
                 if rc2.button("Regenerate", key=f"regen_{view}"):
-                    with st.spinner("Regenerating…"):
-                        st.session_state.content_variants = run_content_generation(
-                            plan,
-                            promoter_image_b64=st.session_state.get("promoter_image_b64"),
-                        )
-                        _persist_variants(st.session_state.content_variants)
-                    st.rerun()
+                    st.session_state.content_variants = None
+                    _run_streaming_generation(plan, key_prefix=f"digr_{view}")
 
         st.divider()
         _render_content_variants()
 
     with tab_rx:
-        _render_receptivity(crop_filter=c["crop"])
+        _render_receptivity(plan=st.session_state.targeting_plan)
 
     with tab_rb:
-        _render_rep_briefing_tab(campaign_path=st.session_state.current_campaign_path)
+        _render_rep_briefing_tab(plan=st.session_state.targeting_plan,
+                                 campaign_path=st.session_state.current_campaign_path)
 
 
 # ── AI / SAVED CAMPAIGN ───────────────────────────────────────────────────────
@@ -1833,16 +2483,35 @@ elif any(c["_id"] == view for c in saved_camps):
         'padding:0.18rem 0.7rem;font-size:0.78rem;color:#d4edda;font-weight:600;">'
         '⚙ Draft — run targeting to activate</span>'
     )
+    _oos_count = len(c.get("oos_blocked", []))
     _stats_html = (
-        f'<span style="color:#fff;font-size:0.88rem;"><strong>{qs.get("total_growers","—")}</strong>'
-        f'<span style="opacity:.7;font-size:0.78rem;"> Scored</span></span>'
-        f'<span style="color:#fff;font-size:0.88rem;"><strong>{c.get("total_eligible","—")}</strong>'
-        f'<span style="opacity:.7;font-size:0.78rem;"> Eligible</span></span>'
-        f'<span style="color:#fff;font-size:0.88rem;"><strong>{len(segs)}</strong>'
-        f'<span style="opacity:.7;font-size:0.78rem;"> Segments</span></span>'
-        f'<span style="background:rgba(192,122,43,0.35);border-radius:999px;padding:0.18rem 0.7rem;'
+        f'<span class="kp-stat-tip" style="color:#fff;font-size:0.88rem;">'
+        f'<strong>{qs.get("total_growers","—")}</strong>'
+        f'<span style="opacity:.7;font-size:0.78rem;"> Scored</span>'
+        f'<span class="kp-tip-icon">ⓘ</span>'
+        f'<span class="kp-tip-box">All growers in the dataset matching this campaign\'s crop and state filters — scored for receptivity.</span>'
+        f'</span>'
+
+        f'<span class="kp-stat-tip" style="color:#fff;font-size:0.88rem;">'
+        f'<strong>{c.get("total_eligible","—")}</strong>'
+        f'<span style="opacity:.7;font-size:0.78rem;"> Eligible</span>'
+        f'<span class="kp-tip-icon">ⓘ</span>'
+        f'<span class="kp-tip-box">Growers with a receptivity score ≥ 0.30 AND product in stock in their nearest retailer territory.</span>'
+        f'</span>'
+
+        f'<span class="kp-stat-tip" style="color:#fff;font-size:0.88rem;">'
+        f'<strong>{len(segs)}</strong>'
+        f'<span style="opacity:.7;font-size:0.78rem;"> Segments</span>'
+        f'<span class="kp-tip-icon">ⓘ</span>'
+        f'<span class="kp-tip-box">AI-generated audience segments — each one is a unique combination of crop × state × channel × persona × recommended product.</span>'
+        f'</span>'
+
+        f'<span class="kp-stat-tip" style="background:rgba(192,122,43,0.35);border-radius:999px;padding:0.18rem 0.7rem;'
         f'font-size:0.78rem;color:#ffd8a0;font-weight:600;">'
-        f'{len(c.get("oos_blocked", []))} OOS blocked</span>'
+        f'{_oos_count} OOS blocked'
+        f'<span class="kp-tip-icon">ⓘ</span>'
+        f'<span class="kp-tip-box">Growers excluded because the recommended product is out-of-stock in their territory. They will not receive campaign messages.</span>'
+        f'</span>'
     )
 
     st.markdown(
@@ -1882,12 +2551,49 @@ box-shadow:0 12px 36px rgba(47,125,76,0.2);">
             unique_states = sorted(growers_df["state"].dropna().unique().tolist())
 
             f1, f2, f3 = st.columns(3)
-            objective    = f1.selectbox("Objective", OBJECTIVES, key=f"stub_obj_{view}")
-            crop_filter  = f2.selectbox("Crop",  ["All"] + unique_crops, key=f"stub_crop_{view}")
-            state_filter = f3.selectbox("State", ["All"] + unique_states, key=f"stub_state_{view}")
-            crop_arg  = None if crop_filter  == "All" else crop_filter
-            state_arg = None if state_filter == "All" else state_filter
+            with f1:
+                obj_sel = st.multiselect(
+                    "Objective",
+                    OBJECTIVES,
+                    default=["Awareness"],
+                    key=f"stub_obj_{view}",
+                    placeholder="Pick one or more objectives",
+                )
+                objective = " + ".join(obj_sel) if obj_sel else "Awareness"
 
+            # ── Crop selector with "All" toggle ───────────────────────────────
+            with f2:
+                all_crops_chk = st.checkbox(
+                    "All crops", value=True, key=f"stub_all_crops_{view}",
+                    help="Target every crop in the dataset — uncheck to pick specific crops",
+                )
+                if all_crops_chk:
+                    st.caption(f"Targeting all {len(unique_crops)} crops")
+                    crop_sel = []
+                else:
+                    crop_sel = st.multiselect(
+                        "Select crops", unique_crops, key=f"stub_crop_{view}",
+                        placeholder="Choose one or more crops",
+                    )
+            crop_arg = crop_sel if crop_sel else None
+
+            # ── State selector with "All" toggle ──────────────────────────────
+            with f3:
+                all_states_chk = st.checkbox(
+                    "All states", value=True, key=f"stub_all_states_{view}",
+                    help="Target every state in the dataset — uncheck to pick specific states",
+                )
+                if all_states_chk:
+                    st.caption(f"Targeting all {len(unique_states)} states")
+                    state_sel = []
+                else:
+                    state_sel = st.multiselect(
+                        "Select states", unique_states, key=f"stub_state_{view}",
+                        placeholder="Choose one or more states",
+                    )
+            state_arg = state_sel if state_sel else None
+
+            # ── Date range + live duration display ────────────────────────────
             d1, d2, d3 = st.columns(3)
             start_date  = d1.date_input("Campaign Start", value=REFERENCE_DATE,
                                         key=f"stub_start_{view}")
@@ -1898,10 +2604,33 @@ box-shadow:0 12px 36px rgba(47,125,76,0.2);">
                                          default=["WhatsApp", "SMS", "IVR"],
                                          key=f"stub_channels_{view}")
 
-            with st.expander("Optional: Budget"):
-                budget_val = st.number_input("Budget (INR)", min_value=0, value=0,
-                                             step=5000, key=f"stub_budget_{view}")
-                budget_arg = int(budget_val) if budget_val else None
+            # Duration badge shown inline between the date fields
+            _delta = (end_date - start_date).days if end_date > start_date else 0
+            if _delta > 0:
+                _weeks, _rem = divmod(_delta, 7)
+                _dur_str = (
+                    f"{_weeks}w {_rem}d" if _weeks and _rem
+                    else (f"{_weeks} week{'s' if _weeks != 1 else ''}" if _weeks
+                          else f"{_delta} days")
+                )
+                _crops_label  = f"{len(crop_sel)} crops"  if crop_sel  else f"all {len(unique_crops)} crops"
+                _states_label = f"{len(state_sel)} states" if state_sel else f"all {len(unique_states)} states"
+                st.markdown(
+                    f'<div style="background:#eef7f1;border-radius:8px;padding:0.45rem 0.85rem;'
+                    f'margin-top:0.2rem;display:inline-flex;gap:0.7rem;align-items:center;'
+                    f'flex-wrap:wrap;font-size:0.8rem;">'
+                    f'<span style="color:{_GREEN};font-weight:700;">📅 {_dur_str}</span>'
+                    f'<span style="color:#5a6b62;">·</span>'
+                    f'<span style="color:#3a4f43;">{_crops_label}</span>'
+                    f'<span style="color:#5a6b62;">·</span>'
+                    f'<span style="color:#3a4f43;">{_states_label}</span>'
+                    f'<span style="color:#5a6b62;">·</span>'
+                    f'<span style="color:#3a4f43;">{start_date.strftime("%d %b")} → {end_date.strftime("%d %b %Y")}</span>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+            elif end_date <= start_date:
+                st.warning("End date must be after start date.")
 
             b1c, b2c = st.columns([2, 1])
             build_clicked = b1c.button("Build Targeting Plan", type="primary",
@@ -1921,8 +2650,6 @@ box-shadow:0 12px 36px rgba(47,125,76,0.2);">
                         date_window=date_window,
                         channel_mix=channel_mix,
                     )
-                    if budget_arg:
-                        plan["budget_inr"] = budget_arg
                     st.session_state.targeting_plan   = plan
                     st.session_state.content_variants = None
                     _persist_plan(plan, source_meta={
@@ -1933,41 +2660,73 @@ box-shadow:0 12px 36px rgba(47,125,76,0.2);">
                 st.rerun()
 
             if gen_clicked:
-                with st.spinner("Generating multilingual content…"):
-                    st.session_state.content_variants = run_content_generation(
-                        st.session_state.targeting_plan
-                    )
-                    _persist_variants(st.session_state.content_variants)
-                st.rerun()
+                _run_streaming_generation(st.session_state.targeting_plan, key_prefix="new")
 
             # Show preview if plan was just built in this session
             plan = st.session_state.targeting_plan
             if plan and plan.get("segments"):
                 st.divider()
                 st.info(plan.get("rationale", "-"))
+                # ── Agent insight banner ──────────────────────────────────────
+                ai_ins = plan.get("agent_insight", {})
+                if ai_ins.get("campaign_advice"):
+                    n_tools = len(ai_ins.get("tool_calls_made", []))
+                    n_segs  = ai_ins.get("segments_prioritised", 0)
+                    st.markdown(
+                        f'<div style="background:linear-gradient(135deg,#0d2318 0%,#172d1e 100%);'
+                        f'border-radius:12px;padding:0.85rem 1.15rem;margin-bottom:0.5rem;'
+                        f'border:1px solid rgba(47,125,76,0.4);">'
+                        f'<div style="font-size:0.68rem;font-weight:700;color:rgba(212,237,218,0.6);'
+                        f'text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.3rem;">'
+                        f'🤖 AI Segmentation Agent · {n_tools} tool calls · {n_segs} segments prioritised</div>'
+                        f'<div style="font-size:0.88rem;color:#d4edda;line-height:1.6;">'
+                        f'{ai_ins["campaign_advice"]}</div>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+                    if ai_ins.get("tool_calls_made"):
+                        with st.expander(f"🔧 Agent tool calls ({n_tools})", expanded=False):
+                            for tc in ai_ins["tool_calls_made"]:
+                                st.markdown(
+                                    f'`{tc["tool"]}` → `{json.dumps(tc["args"])}`',
+                                )
                 qsp = plan.get("quality_summary", {})
                 mm1, mm2, mm3, mm4 = st.columns(4)
-                mm1.metric("Growers Scored",       qsp.get("total_growers", "-"))
-                mm2.metric("Eligible",             plan.get("total_eligible", "-"))
-                mm3.metric("Pre-OOS Eligible",     plan.get("total_eligible_pre_oos", "-"))
-                mm4.metric("No Digital Channel",   qsp.get("non_smartphone", "-"))
+                mm1.metric("Growers Scored",       qsp.get("total_growers", "-"),
+                           help="Total growers evaluated after applying crop and state filters")
+                mm2.metric("Eligible",             plan.get("total_eligible", "-"),
+                           help="Growers above the 0.30 receptivity threshold with product in stock")
+                mm3.metric("Pre-OOS Eligible",     plan.get("total_eligible_pre_oos", "-"),
+                           help="Growers above threshold before the inventory gate — some will be blocked if product is OOS")
+                mm4.metric("No Digital Channel",   qsp.get("non_smartphone", "-"),
+                           help="Non-smartphone growers who can't receive WhatsApp/SMS — need rep field visits")
                 segs_new = plan.get("segments", [])
                 if segs_new:
                     dw = plan.get("date_window") or {}
                     _render_segment_overview(segs_new, plan.get("reference_date", start_date), dw)
                     st.divider()
                     st.markdown(f"#### Targeting Segments ({len(segs_new)})")
-                    st.dataframe(pd.DataFrame([{
-                        "ID": s["segment_id"], "Crop": s["crop"].title(),
-                        "State": s["state"], "Language": s["language"],
-                        "Channel": s["channel"], "Persona": s["persona"],
-                        "Product": s["product"], "Stage": s["stage_context"],
-                        "Growers": s["grower_count"], "Avg Score": s["avg_score"],
-                    } for s in segs_new]), use_container_width=True, hide_index=True)
+                    _render_segment_cards(segs_new)
         else:
             # ── Normal saved campaign overview ─────────────────────────────────
             if c.get("rationale"):
                 st.info(c["rationale"])
+            ai_ins_saved = c.get("agent_insight", {})
+            if ai_ins_saved.get("campaign_advice"):
+                n_tools = len(ai_ins_saved.get("tool_calls_made", []))
+                n_segs  = ai_ins_saved.get("segments_prioritised", 0)
+                st.markdown(
+                    f'<div style="background:linear-gradient(135deg,#0d2318 0%,#172d1e 100%);'
+                    f'border-radius:12px;padding:0.85rem 1.15rem;margin-bottom:0.5rem;'
+                    f'border:1px solid rgba(47,125,76,0.4);">'
+                    f'<div style="font-size:0.68rem;font-weight:700;color:rgba(212,237,218,0.6);'
+                    f'text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.3rem;">'
+                    f'🤖 AI Segmentation Agent · {n_tools} tool calls · {n_segs} segments prioritised</div>'
+                    f'<div style="font-size:0.88rem;color:#d4edda;line-height:1.6;">'
+                    f'{ai_ins_saved["campaign_advice"]}</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
             if c.get("oos_blocked"):
                 grouped_oos = _summarize_oos_blocks(c["oos_blocked"])
                 st.warning(
@@ -1984,13 +2743,7 @@ box-shadow:0 12px 36px rgba(47,125,76,0.2);">
                                          date_win or None)
                 st.divider()
                 st.markdown(f"#### Targeting Segments ({len(segs)})")
-                st.dataframe(pd.DataFrame([{
-                    "ID": s["segment_id"], "Crop": s["crop"].title(),
-                    "State": s["state"], "Language": s["language"],
-                    "Channel": s["channel"], "Persona": s["persona"],
-                    "Product": s["product"], "Stage": s["stage_context"],
-                    "Growers": s["grower_count"], "Avg Score": s["avg_score"],
-                } for s in segs]), use_container_width=True, hide_index=True)
+                _render_segment_cards(segs)
             st.download_button(
                 "⬇ Download JSON",
                 data=json.dumps({k: v for k, v in c.items() if not k.startswith("_")},
@@ -2012,10 +2765,14 @@ box-shadow:0 12px 36px rgba(47,125,76,0.2);">
             # Show plan summary
             qs_c = c.get("quality_summary", {})
             p1, p2, p3, p4 = st.columns(4)
-            p1.metric("Growers Scored", qs_c.get("total_growers", "—"))
-            p2.metric("Eligible",       c.get("total_eligible", "—"))
-            p3.metric("Segments",       len(segs))
-            p4.metric("OOS Blocked",    len(c.get("oos_blocked", [])))
+            p1.metric("Growers Scored", qs_c.get("total_growers", "—"),
+                      help="Total growers evaluated after applying crop and state filters")
+            p2.metric("Eligible",       c.get("total_eligible", "—"),
+                      help="Growers above the 0.30 receptivity threshold with product in stock")
+            p3.metric("Segments",       len(segs),
+                      help="Targeting groups — each segment gets its own multilingual content")
+            p4.metric("OOS Blocked",    len(c.get("oos_blocked", [])),
+                      help="Grower groups excluded because their nearest retailer has out-of-stock risk")
             st.markdown("")
 
             # ── Scope preview + Promoter + Generate ───────────────────────────
@@ -2030,35 +2787,29 @@ box-shadow:0 12px 36px rgba(47,125,76,0.2);">
                 rc1, rc2 = st.columns([4, 1])
                 rc1.success(f"Content generated for {len(existing_variants.get('variants', {}))} segments.")
                 if rc2.button("Regenerate", key=f"regen_saved_{c['_id']}"):
-                    with st.spinner("Regenerating multilingual content…"):
-                        st.session_state.content_variants = run_content_generation(
-                            st.session_state.targeting_plan,
-                            promoter_image_b64=st.session_state.get("promoter_image_b64"),
-                        )
-                        _persist_variants(st.session_state.content_variants)
-                    st.rerun()
+                    st.session_state.content_variants = None
+                    _run_streaming_generation(
+                        st.session_state.targeting_plan,
+                        key_prefix=f"savedR_{c['_id']}",
+                    )
             else:
                 st.session_state.content_variants = None
                 if st.button("Generate Multilingual Content →", type="primary",
                              use_container_width=True, key=f"gen_saved_{c['_id']}"):
-                    with st.spinner("Generating multilingual content for all segments…"):
-                        st.session_state.content_variants = run_content_generation(
-                            st.session_state.targeting_plan,
-                            promoter_image_b64=st.session_state.get("promoter_image_b64"),
-                        )
-                        _persist_variants(st.session_state.content_variants)
-                    st.rerun()
+                    _run_streaming_generation(
+                        st.session_state.targeting_plan,
+                        key_prefix=f"saved_{c['_id']}",
+                    )
 
             st.divider()
             _render_content_variants()
 
     with tab_rx:
-        unique_seg_crops = {s.get("crop") for s in segs if s.get("crop")}
-        crop_f = next(iter(unique_seg_crops)) if len(unique_seg_crops) == 1 else None
-        _render_receptivity(crop_filter=crop_f)
+        _render_receptivity(plan=st.session_state.targeting_plan)
 
     with tab_rb:
-        _render_rep_briefing_tab(campaign_path=c.get("_path"))
+        _render_rep_briefing_tab(plan=st.session_state.targeting_plan,
+                                 campaign_path=c.get("_path"))
 
 
 # ── FALLBACK (deleted or unknown view — reset to welcome) ─────────────────────

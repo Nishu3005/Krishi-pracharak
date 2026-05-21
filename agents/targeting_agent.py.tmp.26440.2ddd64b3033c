@@ -1,6 +1,5 @@
 import json
 import os
-import re
 from datetime import date, datetime
 
 import pandas as pd
@@ -741,9 +740,8 @@ def run_segmentation_agent(
             # No more tool calls → agent is done
             if not msg.tool_calls:
                 raw = (msg.content or "").strip()
-                # Strip markdown fences if present (```json ... ``` or ``` ... ```)
-                raw = re.sub(r"^```(?:json)?\s*", "", raw)
-                raw = re.sub(r"\s*```$", "", raw).strip()
+                # Strip markdown fences if present
+                raw = raw.lstrip("```json").lstrip("```").rstrip("```").strip()
                 result = json.loads(raw)
                 result["tool_calls_made"] = tool_call_log
                 return result

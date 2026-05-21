@@ -150,18 +150,11 @@ def _generate_segment_content(seg: dict, promoter_desc: str | None = None, campa
     tone_note    = PERSONA_TONE.get(persona, PERSONA_TONE["awareness"])
     lang_note    = LANGUAGE_NOTES.get(language, LANGUAGE_NOTES["Hindi"])
 
-    # Include disease/weather risk context if targeting agent flagged one
-    disease_ctx = seg.get("disease_content_ctx", "")
-    spray_ok    = seg.get("spray_window_ok", True)
-    spray_note  = "" if spray_ok else " NOTE: Spraying conditions are poor today (rain/wind) — advise growers to wait for a suitable window."
-
     context_block = (
         f"Crop: {crop}. Region: {state}, India. Growth stage context: {stage_ctx}. "
         f"Product: {product} ({product_info.get('type', '')}) — "
         f"targets {product_info.get('target', '')}. "
         f"Application: {product_info.get('application', '')}."
-        + (f"\n{disease_ctx}" if disease_ctx else "")
-        + spray_note
     )
 
     if channel == "whatsapp":

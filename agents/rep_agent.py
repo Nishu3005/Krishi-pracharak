@@ -5,7 +5,7 @@ from datetime import date, datetime
 import pandas as pd
 import numpy as np
 
-from utils.data_loader import load_reps, load_inventory, load_visits, load_growers
+from utils.data_loader import load_reps, load_inventory, load_visits, load_growers, load_retailers
 from utils.ai_client import call_text, TEXT_MODEL_FAST
 
 DATA_DIR = "data"
@@ -62,7 +62,6 @@ def run_rep_briefing(rep_id: str, reference_date: date, targeting_plan_path: str
 
 def _compute_oos_actions(territory_id: str, reference_date: date) -> list:
     inventory = load_inventory()
-    from utils.data_loader import load_retailers
     retailers = load_retailers()
 
     territory_retailers = retailers[retailers["territory_id"] == territory_id]["retailer_id"].tolist()
@@ -143,7 +142,6 @@ def _get_rep_assist_growers(territory_id: str, targeting_plan_path: str | None =
         plan = json.load(f)
 
     growers = load_growers()
-    from utils.data_loader import load_retailers
     retailers = load_retailers()
     territory_tehsils = set(
         retailers[retailers["territory_id"] == territory_id]["tehsil"].tolist()

@@ -1,6 +1,5 @@
 import json
 import os
-import re
 from datetime import date, datetime
 
 import pandas as pd
@@ -313,56 +312,10 @@ def _assign_persona(row: pd.Series) -> str:
     return "awareness"
 
 
-def _district_risk_breakdown(
-    grower_group: pd.DataFrame,
-    crop: str,
-    state: str,
-    weather_by_district: dict,
-    weather_by_state: dict,
-) -> list[dict]:
-    """
-    For a group of growers (all same crop/state), compute per-district disease
-    risk using district-level weather where available.
-    Returns a list of dicts sorted by risk level, one entry per district that
-    has any elevated risk (level != "none").
-    """
-    if "district" not in grower_group.columns:
-        return []
-
-    districts = grower_group["district"].dropna().unique().tolist()
-    breakdown = []
-    for district in districts:
-        w = weather_by_district.get(district) or weather_by_state.get(state)
-        risk = assess_risk(w, crop, state)
-        if risk["risk_level"] in ("high", "moderate"):
-            n_growers = int((grower_group["district"] == district).sum())
-            breakdown.append({
-                "district":    district,
-                "risk_level":  risk["risk_level"],
-                "risk_type":   risk["risk_type"],
-                "alert_title": risk["alert_title"],
-                "n_growers":   n_growers,
-                "score_boost": risk["score_boost"],
-                "spray_ok":    risk["spray_window_ok"],
-                "weather_src": (w or {}).get("_source", "unknown"),
-            })
-
-    # Sort: high first, then moderate; within each level by grower count desc
-    level_order = {"high": 0, "moderate": 1}
-    breakdown.sort(key=lambda x: (level_order.get(x["risk_level"], 9), -x["n_growers"]))
-    return breakdown
-
-
-def _build_segments(
-    df: pd.DataFrame,
-    weather_by_district: dict | None = None,
-    weather_by_state: dict | None = None,
-) -> tuple[list, list]:
+def _build_segments(df: pd.DataFrame) -> tuple[list, list]:
     segments    = []
     oos_blocked = []
     seg_id      = 1
-    _wbd = weather_by_district or {}
-    _wbs = weather_by_state    or {}
 
     # Group by product as well — growers with different products (different stages or scan intent)
     # belong to different segments with different content.
@@ -389,39 +342,27 @@ def _build_segments(
                     eligible_group["timing_label"].iloc[0] if len(eligible_group) else "unknown"
                 )
 
-            # Dominant product selection reason
-            if "product_selection_reason" in eligible_group.columns and len(eligible_group):
-                selection_reason = eligible_group["product_selection_reason"].mode().iloc[0]
+            # Capture the dominant product selection reason for transparency
+            reason_col = eligible_group.get("product_selection_reason") if hasattr(eligible_group, "get") else None
+            if reason_col is not None and "product_selection_reason" in eligible_group.columns:
+                selection_reason = eligible_group["product_selection_reason"].mode().iloc[0] if len(eligible_group) else ""
             else:
                 selection_reason = ""
 
-            # Per-district disease risk breakdown — key insight: two farmers in
-            # the same state segment may face different local disease pressures.
-            district_risks = _district_risk_breakdown(
-                eligible_group, crop, state, _wbd, _wbs
-            )
-            # Summarise for easy UI access
-            high_risk_districts  = [d["district"] for d in district_risks if d["risk_level"] == "high"]
-            mod_risk_districts   = [d["district"] for d in district_risks if d["risk_level"] == "moderate"]
-
             segments.append({
-                "segment_id":              f"SEG_{seg_id:03d}",
-                "crop":                    crop,
-                "state":                   state,
-                "language":                language,
-                "channel":                 channel,
-                "persona":                 persona,
-                "product":                 product,
+                "segment_id":            f"SEG_{seg_id:03d}",
+                "crop":                  crop,
+                "state":                 state,
+                "language":              language,
+                "channel":               channel,
+                "persona":               persona,
+                "product":               product,
                 "product_selection_reason": selection_reason,
-                "stage_context":           stage_context,
-                "grower_count":            len(eligible_group),
-                "avg_score":               round(eligible_group["receptivity_score"].mean(), 3),
-                "inventory_ok":            True,
-                "grower_ids":              eligible_group["grower_id"].tolist(),
-                # District-level weather intelligence
-                "district_risk_breakdown": district_risks,
-                "high_risk_districts":     high_risk_districts,
-                "moderate_risk_districts": mod_risk_districts,
+                "stage_context":         stage_context,
+                "grower_count":          len(eligible_group),
+                "avg_score":             round(eligible_group["receptivity_score"].mean(), 3),
+                "inventory_ok":          True,
+                "grower_ids":            eligible_group["grower_id"].tolist(),
             })
             seg_id += 1
 
@@ -741,9 +682,8 @@ def run_segmentation_agent(
             # No more tool calls → agent is done
             if not msg.tool_calls:
                 raw = (msg.content or "").strip()
-                # Strip markdown fences if present (```json ... ``` or ``` ... ```)
-                raw = re.sub(r"^```(?:json)?\s*", "", raw)
-                raw = re.sub(r"\s*```$", "", raw).strip()
+                # Strip markdown fences if present
+                raw = raw.lstrip("```json").lstrip("```").rstrip("```").strip()
                 result = json.loads(raw)
                 result["tool_calls_made"] = tool_call_log
                 return result

@@ -1,6 +1,5 @@
 import json
 import os
-import re
 from datetime import date, datetime
 
 import pandas as pd
@@ -11,8 +10,8 @@ from utils.data_loader import load_pos
 from utils.targeting_logic import get_pos_ranked_skus, select_campaign_product
 from utils.product_catalog import PRODUCT_CATALOG
 from utils.ai_client import call_text, TEXT_MODEL_HEAVY
-from utils.weather_client import fetch_weather_multi, fetch_weather_multi_for_districts
-from utils.disease_risk import assess_risks_for_plan, assess_risk
+from utils.weather_client import fetch_weather_multi
+from utils.disease_risk import assess_risks_for_plan
 
 DATA_DIR = "data"
 OUTPUT_PATH = os.path.join(DATA_DIR, "targeting_plan.json")
@@ -60,33 +59,13 @@ def run_targeting(
 
     total_scored = len(df)
 
-    # ── Fetch weather at TWO granularities ───────────────────────────────────
-    # State-level: used for segment-level disease alerts shown in the UI
+    # ── Fetch weather for all active states and assess disease/pest risk ──────
     active_states = df["state"].dropna().unique().tolist()
     weather_by_state = fetch_weather_multi(active_states)
 
-    # District-level: used for per-grower scoring and product overrides.
-    # A farmer in Bikaner (arid) and one in Bharatpur (humid) are in the same
-    # state (Rajasthan) but face completely different disease pressures.
-    # We only fetch districts that actually appear in this campaign's grower pool.
-    district_state_pairs = (
-        df[["district", "state"]]
-        .dropna(subset=["district"])
-        .drop_duplicates()
-        .itertuples(index=False, name=None)
-    )
-    weather_by_district = fetch_weather_multi_for_districts(list(district_state_pairs))
-
-    def _resolve_weather(row) -> dict:
-        """Return the most granular available weather for a grower."""
-        district = str(row.get("district") or "")
-        state    = str(row.get("state")    or "")
-        if district and district in weather_by_district:
-            return weather_by_district[district]
-        return weather_by_state.get(state, {})
-
     def _weather_boost(row):
-        w    = _resolve_weather(row)
+        from utils.disease_risk import assess_risk
+        w = weather_by_state.get(row.get("state", ""))
         risk = assess_risk(w, str(row.get("crop", "")), str(row.get("state", "")))
         return risk.get("score_boost", 0.0)
 
@@ -95,10 +74,11 @@ def run_targeting(
     df["receptivity_score"] = (df["receptivity_score"] + df["weather_boost"]).clip(0.0, 1.0)
 
     # ── Before threshold filter: apply disease-aware product override per grower ──
-    # Uses district-level weather so Bikaner wheat farmers (pest-surge risk) and
-    # Bharatpur wheat farmers (fungal risk) can get different product assignments.
+    # If weather indicates fungal or pest risk for this grower's crop+state, and
+    # their current product isn't the right type, replace it now (while we still
+    # have per-grower territory_id for in-stock checking).
     pos_ranked_skus = get_pos_ranked_skus(load_pos())
-    df = _apply_disease_product_override(df, weather_by_district, weather_by_state, pos_ranked_skus)
+    df = _apply_disease_product_override(df, weather_by_state, pos_ranked_skus)
 
     eligible = df[df["receptivity_score"] >= SCORE_THRESHOLD].copy()
 
@@ -135,8 +115,10 @@ def run_targeting(
     eligible["inventory_ok"] = ~eligible["oos_risk_product"].fillna(False)
 
     # ── Build segments grouped by crop × state × channel × persona × product ──
+    # Products now differ per grower (stage + scan intent), so we include
+    # campaign_product in the groupby to keep product-specific audiences separate.
     eligible["campaign_product"] = eligible["campaign_product"].fillna("unknown")
-    segments_raw, oos_blocked = _build_segments(eligible, weather_by_district, weather_by_state)
+    segments_raw, oos_blocked = _build_segments(eligible)
     segments = _merge_small_segments(segments_raw)
 
     # ── Attach disease/weather context to each segment ─────────────────────────
@@ -224,67 +206,48 @@ def run_targeting(
 
 def _apply_disease_product_override(
     df: pd.DataFrame,
-    weather_by_district: dict,
     weather_by_state: dict,
     pos_ranked_skus: list[str],
 ) -> pd.DataFrame:
     """
-    For growers whose crop + location has an active disease/pest outbreak, reassign
+    For growers whose crop+state has an active disease/pest outbreak, reassign
     the campaign product to the correct type (fungicide / insecticide) if their
-    current product is the wrong type.
-
-    Uses district-level weather first (most precise), falls back to state.
-    Runs per-grower so inventory checks still use territory_id, and so two
-    farmers in the same state but different districts can get different products
-    when their local weather drives different outbreak types.
+    current product is the wrong type.  Runs per grower so inventory checks
+    still use territory_id.
     """
-    # Build (district_or_state, crop) → risk_type cache to avoid O(n) assess_risk calls
+    from utils.disease_risk import assess_risk
+
+    # Build a lightweight (state, crop) → risk_type cache to avoid O(n) weather calls
     risk_cache: dict[tuple[str, str], str | None] = {}
-
-    # District-level entries (highest priority)
-    for district, w in weather_by_district.items():
-        state = (w or {}).get("_state", "")
-        for crop in df[df["district"] == district]["crop"].dropna().unique():
-            key = (f"d:{district}", str(crop))
-            risk = assess_risk(w, str(crop), str(state))
-            risk_cache[key] = risk.get("risk_type")
-
-    # State-level entries (fallback for districts not in DISTRICT_HUBS)
     for state in df["state"].dropna().unique():
         w = weather_by_state.get(state)
         for crop in df[df["state"] == state]["crop"].dropna().unique():
-            key = (f"s:{state}", str(crop))
-            if key not in risk_cache:
-                risk = assess_risk(w, str(crop), str(state))
-                risk_cache[key] = risk.get("risk_type")
+            risk = assess_risk(w, str(crop), str(state))
+            risk_cache[(str(state), str(crop))] = risk.get("risk_type")
 
     df = df.copy()
 
     def _override(row):
-        district = str(row.get("district") or "")
-        state    = str(row.get("state")    or "")
-        crop     = str(row.get("crop")     or "")
-
-        # Prefer district-level risk; fall back to state
-        risk_type = risk_cache.get((f"d:{district}", crop)) or \
-                    risk_cache.get((f"s:{state}", crop))
+        state = str(row.get("state") or "")
+        crop  = str(row.get("crop")  or "")
+        risk_type = risk_cache.get((state, crop))
         if risk_type not in ("fungal", "pest"):
             return row.get("campaign_product")
 
         product_type_wanted = "fungicide" if risk_type == "fungal" else "insecticide"
-        current      = str(row.get("campaign_product") or "")
+        current = str(row.get("campaign_product") or "")
         current_type = PRODUCT_CATALOG.get(current, {}).get("type", "")
         if current_type.startswith(product_type_wanted):
-            return current  # already the right type
+            return current  # already correct
 
-        crop_key   = crop.lower()
+        crop_key = crop.lower()
         candidates = [
             sku for sku, ctx in PRODUCT_CATALOG.items()
             if ctx.get("type", "").startswith(product_type_wanted)
             and crop_key in [c.strip().lower() for c in ctx.get("crop_fit", [])]
         ]
         if not candidates:
-            return current
+            return current  # no suitable product — keep original
 
         for sku in pos_ranked_skus:
             if sku in candidates:
@@ -313,56 +276,10 @@ def _assign_persona(row: pd.Series) -> str:
     return "awareness"
 
 
-def _district_risk_breakdown(
-    grower_group: pd.DataFrame,
-    crop: str,
-    state: str,
-    weather_by_district: dict,
-    weather_by_state: dict,
-) -> list[dict]:
-    """
-    For a group of growers (all same crop/state), compute per-district disease
-    risk using district-level weather where available.
-    Returns a list of dicts sorted by risk level, one entry per district that
-    has any elevated risk (level != "none").
-    """
-    if "district" not in grower_group.columns:
-        return []
-
-    districts = grower_group["district"].dropna().unique().tolist()
-    breakdown = []
-    for district in districts:
-        w = weather_by_district.get(district) or weather_by_state.get(state)
-        risk = assess_risk(w, crop, state)
-        if risk["risk_level"] in ("high", "moderate"):
-            n_growers = int((grower_group["district"] == district).sum())
-            breakdown.append({
-                "district":    district,
-                "risk_level":  risk["risk_level"],
-                "risk_type":   risk["risk_type"],
-                "alert_title": risk["alert_title"],
-                "n_growers":   n_growers,
-                "score_boost": risk["score_boost"],
-                "spray_ok":    risk["spray_window_ok"],
-                "weather_src": (w or {}).get("_source", "unknown"),
-            })
-
-    # Sort: high first, then moderate; within each level by grower count desc
-    level_order = {"high": 0, "moderate": 1}
-    breakdown.sort(key=lambda x: (level_order.get(x["risk_level"], 9), -x["n_growers"]))
-    return breakdown
-
-
-def _build_segments(
-    df: pd.DataFrame,
-    weather_by_district: dict | None = None,
-    weather_by_state: dict | None = None,
-) -> tuple[list, list]:
+def _build_segments(df: pd.DataFrame) -> tuple[list, list]:
     segments    = []
     oos_blocked = []
     seg_id      = 1
-    _wbd = weather_by_district or {}
-    _wbs = weather_by_state    or {}
 
     # Group by product as well — growers with different products (different stages or scan intent)
     # belong to different segments with different content.
@@ -389,39 +306,27 @@ def _build_segments(
                     eligible_group["timing_label"].iloc[0] if len(eligible_group) else "unknown"
                 )
 
-            # Dominant product selection reason
-            if "product_selection_reason" in eligible_group.columns and len(eligible_group):
-                selection_reason = eligible_group["product_selection_reason"].mode().iloc[0]
+            # Capture the dominant product selection reason for transparency
+            reason_col = eligible_group.get("product_selection_reason") if hasattr(eligible_group, "get") else None
+            if reason_col is not None and "product_selection_reason" in eligible_group.columns:
+                selection_reason = eligible_group["product_selection_reason"].mode().iloc[0] if len(eligible_group) else ""
             else:
                 selection_reason = ""
 
-            # Per-district disease risk breakdown — key insight: two farmers in
-            # the same state segment may face different local disease pressures.
-            district_risks = _district_risk_breakdown(
-                eligible_group, crop, state, _wbd, _wbs
-            )
-            # Summarise for easy UI access
-            high_risk_districts  = [d["district"] for d in district_risks if d["risk_level"] == "high"]
-            mod_risk_districts   = [d["district"] for d in district_risks if d["risk_level"] == "moderate"]
-
             segments.append({
-                "segment_id":              f"SEG_{seg_id:03d}",
-                "crop":                    crop,
-                "state":                   state,
-                "language":                language,
-                "channel":                 channel,
-                "persona":                 persona,
-                "product":                 product,
+                "segment_id":            f"SEG_{seg_id:03d}",
+                "crop":                  crop,
+                "state":                 state,
+                "language":              language,
+                "channel":               channel,
+                "persona":               persona,
+                "product":               product,
                 "product_selection_reason": selection_reason,
-                "stage_context":           stage_context,
-                "grower_count":            len(eligible_group),
-                "avg_score":               round(eligible_group["receptivity_score"].mean(), 3),
-                "inventory_ok":            True,
-                "grower_ids":              eligible_group["grower_id"].tolist(),
-                # District-level weather intelligence
-                "district_risk_breakdown": district_risks,
-                "high_risk_districts":     high_risk_districts,
-                "moderate_risk_districts": mod_risk_districts,
+                "stage_context":         stage_context,
+                "grower_count":          len(eligible_group),
+                "avg_score":             round(eligible_group["receptivity_score"].mean(), 3),
+                "inventory_ok":          True,
+                "grower_ids":            eligible_group["grower_id"].tolist(),
             })
             seg_id += 1
 
@@ -741,9 +646,8 @@ def run_segmentation_agent(
             # No more tool calls → agent is done
             if not msg.tool_calls:
                 raw = (msg.content or "").strip()
-                # Strip markdown fences if present (```json ... ``` or ``` ... ```)
-                raw = re.sub(r"^```(?:json)?\s*", "", raw)
-                raw = re.sub(r"\s*```$", "", raw).strip()
+                # Strip markdown fences if present
+                raw = raw.lstrip("```json").lstrip("```").rstrip("```").strip()
                 result = json.loads(raw)
                 result["tool_calls_made"] = tool_call_log
                 return result
