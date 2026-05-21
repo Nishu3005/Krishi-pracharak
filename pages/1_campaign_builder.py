@@ -88,9 +88,25 @@ section[data-testid="stSidebar"] [data-testid="column"] {
 _GREEN  = "#2f7d4c"
 _AMBER  = "#b8701f"
 _LAYOUT = dict(
-    paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+    paper_bgcolor="#fffdf7",
+    plot_bgcolor="#fffdf7",
     margin=dict(l=10, r=10, t=30, b=10),
     font=dict(color="#1a2520", family="Space Grotesk"),
+    title_font=dict(color="#1a2520", size=13),
+    xaxis=dict(
+        color="#1a2520",
+        tickfont=dict(color="#4a5e54"),
+        title=dict(font=dict(color="#4a5e54")),
+        gridcolor="#e8e4da",
+        linecolor="#e8e4da",
+    ),
+    yaxis=dict(
+        color="#1a2520",
+        tickfont=dict(color="#4a5e54"),
+        title=dict(font=dict(color="#4a5e54")),
+        gridcolor="#e8e4da",
+        linecolor="#e8e4da",
+    ),
 )
 REFERENCE_DATE = date.today()
 

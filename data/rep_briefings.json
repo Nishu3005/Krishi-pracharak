@@ -442,5 +442,73 @@
     ],
     "offline_growers_count": 4,
     "territory_id": "TER_0004"
+  },
+  "REP_0018": {
+    "generated_at": "2026-05-21T17:24:49.459349",
+    "briefing_text": "**WEEKLY BRIEFING — REP_0018 | TER_0018 | Week of May 21**\n\nYou have 10 growers overdue for visits (82–95 days), creating immediate stock-out and competitive vulnerability across your territory. Prioritize Ludhiana_T009 (95 days) and Ludhiana_T003 (94 days) first, then work through the remainder in descending order of gap—these extended intervals risk lost shelf space and customer drift. Remember: 2 of your non-smartphone growers can only be engaged face-to-face, so factor personal visits into your route planning rather than relying on calls. Consolidate visits geographically this week to maximize coverage and rebuild relationship momentum before the season advances.",
+    "priority_actions": [
+      {
+        "type": "visit_gap",
+        "tehsil": "Ludhiana_T001",
+        "days_since_visit": 90,
+        "rank": 1
+      },
+      {
+        "type": "visit_gap",
+        "tehsil": "Ludhiana_T002",
+        "days_since_visit": 84,
+        "rank": 2
+      },
+      {
+        "type": "visit_gap",
+        "tehsil": "Ludhiana_T003",
+        "days_since_visit": 94,
+        "rank": 3
+      },
+      {
+        "type": "visit_gap",
+        "tehsil": "Ludhiana_T004",
+        "days_since_visit": 93,
+        "rank": 4
+      },
+      {
+        "type": "visit_gap",
+        "tehsil": "Ludhiana_T005",
+        "days_since_visit": 82,
+        "rank": 5
+      },
+      {
+        "type": "visit_gap",
+        "tehsil": "Ludhiana_T006",
+        "days_since_visit": 86,
+        "rank": 6
+      },
+      {
+        "type": "visit_gap",
+        "tehsil": "Ludhiana_T007",
+        "days_since_visit": 86,
+        "rank": 7
+      },
+      {
+        "type": "visit_gap",
+        "tehsil": "Ludhiana_T008",
+        "days_since_visit": 88,
+        "rank": 8
+      },
+      {
+        "type": "visit_gap",
+        "tehsil": "Ludhiana_T009",
+        "days_since_visit": 95,
+        "rank": 9
+      },
+      {
+        "type": "visit_gap",
+        "tehsil": "Ludhiana_T010",
+        "days_since_visit": 87,
+        "rank": 10
+      }
+    ],
+    "offline_growers_count": 2,
+    "territory_id": "TER_0018"
   }
 }

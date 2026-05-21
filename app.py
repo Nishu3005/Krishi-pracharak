@@ -46,10 +46,25 @@ st.markdown(
 
 
 _CHART_LAYOUT = dict(
-    paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor="rgba(0,0,0,0)",
+    paper_bgcolor="#fffdf7",
+    plot_bgcolor="#fffdf7",
     margin=dict(l=10, r=10, t=30, b=10),
     font=dict(color="#1a2520", family="Space Grotesk"),
+    title_font=dict(color="#1a2520", size=13),
+    xaxis=dict(
+        color="#1a2520",
+        tickfont=dict(color="#4a5e54"),
+        title=dict(font=dict(color="#4a5e54")),
+        gridcolor="#e8e4da",
+        linecolor="#e8e4da",
+    ),
+    yaxis=dict(
+        color="#1a2520",
+        tickfont=dict(color="#4a5e54"),
+        title=dict(font=dict(color="#4a5e54")),
+        gridcolor="#e8e4da",
+        linecolor="#e8e4da",
+    ),
 )
 
 
@@ -122,8 +137,17 @@ with tab_geo:
         fig_radar.update_layout(
             title="Language Coverage by Districts",
             polar=dict(
-                radialaxis=dict(visible=True, color="#4f6157"),
-                angularaxis=dict(color="#1d2a22"),
+                radialaxis=dict(
+                    visible=True,
+                    tickfont=dict(color="#4a5e54", size=10),
+                    gridcolor="#e8e4da",
+                    linecolor="#e8e4da",
+                ),
+                angularaxis=dict(
+                    tickfont=dict(color="#1a2520", size=12),
+                    linecolor="#e8e4da",
+                ),
+                bgcolor="#fffdf7",
             ),
             showlegend=False,
             **_CHART_LAYOUT,
