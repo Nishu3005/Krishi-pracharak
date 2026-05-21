@@ -358,12 +358,12 @@ hr {
 
 /* ── Sidebar ─────────────────────────────────────────────────────────────────── */
 section[data-testid="stSidebar"] {
-  background: linear-gradient(175deg, #122b1c 0%, #0c1e13 60%, #081410 100%) !important;
-  border-right: 1px solid rgba(47,125,76,0.2) !important;
+  background: #0f1f15 !important;
+  border-right: 1px solid rgba(255,255,255,0.06) !important;
 }
 
 section[data-testid="stSidebar"] > div:first-child {
-  padding-top: 1.25rem;
+  padding-top: 1rem;
 }
 
 /* Brand header */
@@ -371,67 +371,40 @@ section[data-testid="stSidebar"] > div:first-child {
   content: "🌾 Krishi Pracharak";
   display: block;
   font-family: "Source Serif 4", serif;
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-weight: 700;
-  color: #d4edda;
-  padding: 0.1rem 1.1rem 1rem;
-  border-bottom: 1px solid rgba(255,255,255,0.07);
-  margin-bottom: 0.75rem;
+  color: rgba(212,237,218,0.9);
+  padding: 0.1rem 1rem 0.9rem;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  margin-bottom: 0.6rem;
   letter-spacing: -0.01em;
 }
 
 [data-testid="stSidebarNav"] {
-  padding: 0 0.6rem;
+  padding: 0 0.5rem;
 }
 
 [data-testid="stSidebarNavLink"] {
-  border-radius: 10px !important;
-  padding: 0.55rem 0.9rem !important;
-  margin-bottom: 0.22rem !important;
-  color: rgba(210,232,216,0.72) !important;
+  border-radius: 6px !important;
+  padding: 0.45rem 0.8rem !important;
+  margin-bottom: 0.15rem !important;
+  color: rgba(200,225,210,0.6) !important;
   background: transparent !important;
-  border: 1px solid transparent !important;
-  transition: background 0.18s, border-color 0.18s, color 0.18s !important;
-  font-size: 0.875rem !important;
-  font-weight: 500 !important;
+  border: none !important;
+  transition: background 0.12s, color 0.12s !important;
+  font-size: 0.84rem !important;
+  font-weight: 400 !important;
 }
 
 [data-testid="stSidebarNavLink"]:hover {
-  background: rgba(47,125,76,0.18) !important;
-  border-color: rgba(47,125,76,0.32) !important;
-  color: #d4edda !important;
+  background: rgba(255,255,255,0.06) !important;
+  color: rgba(220,242,228,0.92) !important;
 }
 
 [data-testid="stSidebarNavLink"][aria-current="page"] {
-  background: rgba(47,125,76,0.28) !important;
-  border-color: rgba(47,125,76,0.55) !important;
+  background: rgba(255,255,255,0.09) !important;
   color: #ffffff !important;
   font-weight: 600 !important;
-  box-shadow: inset 3px 0 0 #2f7d4c;
-}
-
-/* Sidebar buttons (campaign sub-nav) */
-section[data-testid="stSidebar"] .stButton > button {
-  background: transparent !important;
-  border: 1px solid transparent !important;
-  border-radius: 8px !important;
-  text-align: left !important;
-  width: 100% !important;
-  padding: 0.28rem 0.65rem !important;
-  color: rgba(210,232,216,0.68) !important;
-  font-size: 0.81rem !important;
-  font-weight: 400 !important;
-  justify-content: flex-start !important;
-  box-shadow: none !important;
-  transition: all 0.12s !important;
-}
-
-section[data-testid="stSidebar"] .stButton > button:hover {
-  background: rgba(47,125,76,0.2) !important;
-  color: #fff !important;
-  border-color: rgba(47,125,76,0.38) !important;
-  box-shadow: none !important;
-  transform: none !important;
 }
 
 
@@ -700,37 +673,16 @@ section[data-testid="stSidebar"] .stButton > button:hover {
   background: var(--paper);
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-md);
-  padding: 1rem 1.1rem;
-  box-shadow: var(--shadow-sm);
-  transition: box-shadow 0.15s, transform 0.13s, border-color 0.15s;
+  padding: 1rem 1.05rem 0.85rem;
+  box-shadow: 0 1px 4px rgba(26,37,32,0.05);
+  transition: border-color 0.15s, box-shadow 0.15s;
   margin-bottom: 0.05rem;
   height: 100%;
   box-sizing: border-box;
 }
 .kp-camp-card:hover {
-  box-shadow: var(--shadow-md);
-  transform: translateY(-2px);
-  border-color: var(--accent-soft);
-}
-.kp-camp-typetag {
-  font-size: 0.64rem; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.07em; color: var(--muted); margin-bottom: 0.28rem;
-}
-.kp-camp-name {
-  font-size: 0.93rem; font-weight: 700; color: var(--ink);
-  margin-bottom: 0.22rem; line-height: 1.3;
-}
-.kp-camp-meta {
-  font-size: 0.74rem; color: var(--muted); margin-bottom: 0.65rem;
-}
-.kp-camp-stats { display: flex; gap: 1rem; flex-wrap: wrap; }
-.kp-camp-stat-val {
-  font-size: 1rem; font-weight: 700; color: var(--ink);
-  font-family: "Source Serif 4", serif; line-height: 1.1;
-}
-.kp-camp-stat-lbl {
-  font-size: 0.62rem; color: var(--muted);
-  text-transform: uppercase; letter-spacing: 0.04em;
+  border-color: #c8d8cb;
+  box-shadow: 0 3px 12px rgba(26,37,32,0.08);
 }
 </style>
 """,

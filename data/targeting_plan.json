@@ -1,21 +1,21 @@
 {
-  "generated_at": "2026-05-21T14:54:51.093791",
-  "reference_date": "2026-05-21",
-  "campaign_name": "test-001",
+  "generated_at": "2026-05-21T16:41:16.136342",
+  "reference_date": "2026-05-01",
+  "campaign_name": "test-002",
   "campaign_objective": "Awareness",
   "date_window": {
-    "start": "2026-05-21",
-    "end": "2026-05-30"
+    "start": "2026-05-01",
+    "end": "2026-05-31"
   },
   "channel_mix": [
     "WhatsApp",
     "SMS",
     "IVR"
   ],
-  "rationale": "## Campaign Rationale — WhatsApp Awareness Push | 21 May 2026\n\nThese two wheat segments in Bihar (13 growers) and Haryana (22 growers) were prioritised based on flowering-stage alignment as of 21 May 2026, with engagement scores of 0.323 and 0.324 respectively — modest but sufficient thresholds to justify a low-cost WhatsApp awareness touchpoint ahead of peak fungicide and pest pressure. Both segments sit at **stage_aware_flowering**, making this the critical intervention window before disease and sucking pest incidence escalates and growers begin active purchase decisions. **Tilt 250 EC** was assigned to the Bihar cohort given its proven efficacy against wheat fungal diseases (notably rust and powdery mildew) at flowering, while **Actara 25 WG** was assigned to Haryana growers to address aphid and whitefly pressure characteristic of that geography at this crop stage — both selections are stage-aware rather than scan-intent driven, reflecting proactive rather than reactive targeting. No OOS inventory blocks were triggered, meaning all 35 growers can be messaged without risk of demand-supply mismatch or channel credibility damage. Field teams should expect this awareness layer to prime growers for follow-up conversion conversations within 7–14 days, with the 35-grower base representing a focused, high-relevance pool where even a 25–30% conversion rate would yield 8–10 confirmed sales leads across both states.",
-  "total_growers_scored": 488,
-  "total_eligible_pre_oos": 35,
-  "total_eligible": 35,
+  "rationale": "## Campaign Rationale – Wheat Flowering Window | May 2026\n\nWith the reference date of May 1, 2026 aligning directly with the wheat flowering stage, all three segments were prioritised based on their stage-aware scoring signals, indicating growers are at a critical crop protection decision point where fungicide and insecticide interventions deliver maximum yield protection. The Bihar WhatsApp segment (13 growers, avg score 0.323) was matched to **Tilt 250 EC** for its proven efficacy against flowering-stage fungal threats such as powdery mildew and rust, while both Punjab segments — WhatsApp (33 growers, avg score 0.320) and rep-assisted (2 growers, avg score 0.305) — were assigned **Actara 25 WG**, reflecting Punjab's elevated aphid and sucking pest pressure at this growth stage and the product's strong regional adoption history. The rep-assisted Punjab cohort, though small at 2 growers, warrants direct field engagement given the higher-touch channel requirement, while the WhatsApp-dominant segments support scalable digital outreach across 46 growers in total. **No inventory gates were triggered** in this cycle, meaning all three campaigns are cleared to execute without stock-based suppression, reducing friction for field teams. The expected outcome is focused conversion pressure on a combined 48 growers during the narrow flowering intervention window, with WhatsApp-driven awareness campaigns priming purchase intent ahead of rep follow-up, targeting a conversion rate improvement consistent with stage-aligned, channel-appropriate outreach.",
+  "total_growers_scored": 524,
+  "total_eligible_pre_oos": 48,
+  "total_eligible": 48,
   "segments": [
     {
       "segment_id": "SEG_001",
@@ -26,7 +26,7 @@
       "persona": "awareness",
       "product": "Tilt 250 EC",
       "product_selection_reason": "stage_aware_flowering",
-      "stage_context": "flowering (90 days ago)",
+      "stage_context": "flowering (70 days ago)",
       "grower_count": 13,
       "avg_score": 0.323,
       "inventory_ok": true,
@@ -60,56 +60,26 @@
     {
       "segment_id": "SEG_009",
       "crop": "wheat",
-      "state": "Haryana",
-      "language": "Hindi",
-      "channel": "whatsapp",
+      "state": "Punjab",
+      "language": "Punjabi",
+      "channel": "rep_assist",
       "persona": "awareness",
       "product": "Actara 25 WG",
       "product_selection_reason": "stage_aware_flowering",
-      "stage_context": "flowering (90 days ago)",
-      "grower_count": 22,
-      "avg_score": 0.324,
+      "stage_context": "flowering (70 days ago)",
+      "grower_count": 2,
+      "avg_score": 0.305,
       "inventory_ok": true,
       "grower_ids": [
-        "GRW_00745",
-        "GRW_01965",
-        "GRW_04793",
-        "GRW_00682",
-        "GRW_01629",
-        "GRW_01665",
-        "GRW_01996",
-        "GRW_02603",
-        "GRW_02784",
-        "GRW_02790",
-        "GRW_03374",
-        "GRW_03898",
-        "GRW_04439",
-        "GRW_04452",
-        "GRW_04705",
-        "GRW_04875",
-        "GRW_03114",
-        "GRW_03360",
-        "GRW_03682",
-        "GRW_05440",
-        "GRW_05566",
-        "GRW_05620"
+        "GRW_02337",
+        "GRW_01067"
       ],
       "district_risk_breakdown": [
         {
-          "district": "Hisar",
+          "district": "Ludhiana",
           "risk_level": "high",
           "risk_type": "pest",
-          "alert_title": "Aphids Surge Risk — Haryana",
-          "n_growers": 2,
-          "score_boost": 0.06,
-          "spray_ok": true,
-          "weather_src": "open_meteo"
-        },
-        {
-          "district": "Rohtak",
-          "risk_level": "high",
-          "risk_type": "pest",
-          "alert_title": "Aphids Surge Risk — Haryana",
+          "alert_title": "Aphids Surge Risk — Punjab",
           "n_growers": 1,
           "score_boost": 0.06,
           "spray_ok": true,
@@ -117,29 +87,101 @@
         }
       ],
       "high_risk_districts": [
-        "Hisar",
-        "Rohtak"
+        "Ludhiana"
       ],
       "moderate_risk_districts": [],
       "disease_risk_level": "high",
       "disease_risk_type": "pest",
-      "disease_alert_title": "Aphids Surge Risk — Haryana",
-      "disease_alert_body": "Hot, dry conditions (max 41°C, humidity 26%) accelerate Aphids (Sitobion avenae) population growth in wheat crops. Population can double in 5–7 days under these conditions.",
+      "disease_alert_title": "Aphids Surge Risk — Punjab",
+      "disease_alert_body": "Hot, dry conditions (max 41°C, humidity 29%) accelerate Aphids (Sitobion avenae) population growth in wheat crops. Population can double in 5–7 days under these conditions.",
       "spray_window_ok": true,
       "weather_boost_applied": 0.06,
-      "disease_content_ctx": "WEATHER ALERT: Aphids surge risk is high in Haryana — hot dry weather (max 41°C). Recommend Actara 25 WG application before population explodes. Mention this risk in the message. The recommended product for this segment is Actara 25 WG (insecticide) — aphids, whitefly, jassids, thrips.",
+      "disease_content_ctx": "WEATHER ALERT: Aphids surge risk is high in Punjab — hot dry weather (max 41°C). Recommend Actara 25 WG application before population explodes. Mention this risk in the message. The recommended product for this segment is Actara 25 WG (insecticide) — aphids, whitefly, jassids, thrips.",
+      "agent_note": ""
+    },
+    {
+      "segment_id": "SEG_011",
+      "crop": "wheat",
+      "state": "Punjab",
+      "language": "Punjabi",
+      "channel": "whatsapp",
+      "persona": "awareness",
+      "product": "Actara 25 WG",
+      "product_selection_reason": "stage_aware_flowering",
+      "stage_context": "flowering (70 days ago)",
+      "grower_count": 33,
+      "avg_score": 0.32,
+      "inventory_ok": true,
+      "grower_ids": [
+        "GRW_01758",
+        "GRW_01918",
+        "GRW_02019",
+        "GRW_02179",
+        "GRW_02242",
+        "GRW_05562",
+        "GRW_05871",
+        "GRW_00264",
+        "GRW_00489",
+        "GRW_02464",
+        "GRW_02560",
+        "GRW_02719",
+        "GRW_04064",
+        "GRW_04360",
+        "GRW_04415",
+        "GRW_04482",
+        "GRW_04519",
+        "GRW_04565",
+        "GRW_04835",
+        "GRW_04964",
+        "GRW_00307",
+        "GRW_00374",
+        "GRW_00391",
+        "GRW_00679",
+        "GRW_00866",
+        "GRW_01286",
+        "GRW_01523",
+        "GRW_01778",
+        "GRW_03870",
+        "GRW_04498",
+        "GRW_04804",
+        "GRW_05132",
+        "GRW_05970"
+      ],
+      "district_risk_breakdown": [
+        {
+          "district": "Ludhiana",
+          "risk_level": "high",
+          "risk_type": "pest",
+          "alert_title": "Aphids Surge Risk — Punjab",
+          "n_growers": 7,
+          "score_boost": 0.06,
+          "spray_ok": true,
+          "weather_src": "open_meteo"
+        }
+      ],
+      "high_risk_districts": [
+        "Ludhiana"
+      ],
+      "moderate_risk_districts": [],
+      "disease_risk_level": "high",
+      "disease_risk_type": "pest",
+      "disease_alert_title": "Aphids Surge Risk — Punjab",
+      "disease_alert_body": "Hot, dry conditions (max 41°C, humidity 29%) accelerate Aphids (Sitobion avenae) population growth in wheat crops. Population can double in 5–7 days under these conditions.",
+      "spray_window_ok": true,
+      "weather_boost_applied": 0.06,
+      "disease_content_ctx": "WEATHER ALERT: Aphids surge risk is high in Punjab — hot dry weather (max 41°C). Recommend Actara 25 WG application before population explodes. Mention this risk in the message. The recommended product for this segment is Actara 25 WG (insecticide) — aphids, whitefly, jassids, thrips.",
       "agent_note": ""
     }
   ],
   "oos_blocked": [],
   "quality_summary": {
-    "total_growers": 488,
+    "total_growers": 524,
     "missing_calendar": 0,
-    "stage_based": 488,
+    "stage_based": 524,
     "season_phase": 0,
-    "below_threshold": 453,
+    "below_threshold": 476,
     "oos_blocked_growers": 0,
-    "non_smartphone": 113
+    "non_smartphone": 123
   },
   "disease_risks": {
     "Bihar||wheat": {
@@ -149,28 +191,28 @@
       "alert_body": null,
       "spray_window_ok": true
     },
-    "Haryana||wheat": {
+    "Punjab||wheat": {
       "risk_level": "high",
       "risk_type": "pest",
-      "alert_title": "Aphids Surge Risk — Haryana",
-      "alert_body": "Hot, dry conditions (max 41°C, humidity 26%) accelerate Aphids (Sitobion avenae) population growth in wheat crops. Population can double in 5–7 days under these conditions.",
+      "alert_title": "Aphids Surge Risk — Punjab",
+      "alert_body": "Hot, dry conditions (max 41°C, humidity 29%) accelerate Aphids (Sitobion avenae) population growth in wheat crops. Population can double in 5–7 days under these conditions.",
       "spray_window_ok": true
     }
   },
   "weather_by_state": {
-    "Haryana": {
+    "Punjab": {
       "condition": "Clear sky",
-      "temp_c": 33.6,
-      "humidity_pct": 26,
-      "wind_kmh": 9.1,
+      "temp_c": 32.1,
+      "humidity_pct": 29,
+      "wind_kmh": 6.4,
       "rain_3day": 0,
       "is_fallback": false
     },
     "Bihar": {
-      "condition": "Thunderstorm",
-      "temp_c": 30.9,
-      "humidity_pct": 73,
-      "wind_kmh": 15.6,
+      "condition": "Clear sky",
+      "temp_c": 29.8,
+      "humidity_pct": 77,
+      "wind_kmh": 14.1,
       "rain_3day": 0.1,
       "is_fallback": false
     }

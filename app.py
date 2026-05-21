@@ -7,6 +7,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from utils.ui_theme import apply_theme
+from utils.home_theme import inject_home_css, home_hero_html, home_metrics_html, home_section
 
 st.set_page_config(
     page_title="Krishi Pracharak",
@@ -16,6 +17,7 @@ st.set_page_config(
 )
 
 apply_theme()
+inject_home_css()
 
 # ── Dataset path on sys.path for analysis modules ─────────────────────────────
 sys.path.insert(0, str(Path(__file__).parent / "Syngenta_IITM_Hackathon_2026_dataset"))
@@ -34,21 +36,14 @@ def _load_reps_insights():
 
 
 
-# ── Hero ──────────────────────────────────────────────────────────────────────
 st.markdown(
-    """
-<div style="background:linear-gradient(135deg,#1a3d28 0%,#2f7d4c 55%,#1a3d28 100%);border-radius:24px;padding:2.5rem 2.5rem 2rem;margin-bottom:2rem;box-shadow:0 20px 60px rgba(47,125,76,0.25);">
-  <h1 style="color:#ffffff;font-size:2.8rem;font-weight:700;margin:0 0 0.5rem;letter-spacing:-0.03em;line-height:1.1;">🌾 Krishi Pracharak</h1>
-  <p style="color:rgba(255,255,255,0.80);font-size:1.05rem;margin:0;max-width:620px;line-height:1.65;">From 6,000 growers and a product catalog to ranked field actions, multilingual campaign content, and rep briefings — fully AI-driven, in one operational flow.</p>
-</div>
-""",
+    home_hero_html(
+        "From 6,000 growers and a product catalog to ranked field actions, "
+        "multilingual campaign content, and rep briefings — fully AI-driven, in one operational flow."
+    ),
     unsafe_allow_html=True,
 )
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# SECTION A — Campaign Intelligence
-# ─────────────────────────────────────────────────────────────────────────────
 
 _CHART_LAYOUT = dict(
     paper_bgcolor="rgba(0,0,0,0)",
@@ -62,26 +57,23 @@ _CHART_LAYOUT = dict(
 # SECTION A — Grower Network Intelligence
 # ─────────────────────────────────────────────────────────────────────────────
 
-st.markdown("### 🌾 Grower Network Intelligence")
-st.caption("Geo-demographic profile of 6,000 growers across 10 states — crop patterns, language reach, technology adoption, and farm economics.")
-st.divider()
+home_section(
+    "Grower Network Intelligence",
+    "Geo-demographic profile of 6,000 growers across 10 states — crop patterns, language reach, technology adoption, and farm economics.",
+)
 
 gi = _load_grower_insights()
 
-# ── Top metric row ─────────────────────────────────────────────────────────
-m1, m2, m3, m4, m5 = st.columns(5)
-m1.metric("Total Growers", f"{gi['total_growers']:,}",
-          help="Growers tracked across all states in the Syngenta dataset")
-m2.metric("States", gi["total_states"],
-          help="Number of Indian states covered by the grower network")
-m3.metric("Districts", gi["total_districts"],
-          help="Distinct districts with at least one tracked grower")
-m4.metric("Avg Farm Size", f"{gi['farm_size_stats']['mean']} ac",
-          help="Mean farm size in acres across all growers — smaller farms tend to engage more with digital campaigns")
-m5.metric("Scan Rate", f"{gi['product_scan_rate_pct']}%",
-          help="% of growers who scanned a Syngenta product QR code — a strong buying-intent signal")
-
-st.markdown("<br>", unsafe_allow_html=True)
+st.markdown(
+    home_metrics_html([
+        (f"{gi['total_growers']:,}", "Total Growers", False),
+        (str(gi["total_states"]), "States", False),
+        (str(gi["total_districts"]), "Districts", False),
+        (f"{gi['farm_size_stats']['mean']} ac", "Avg Farm Size", False),
+        (f"{gi['product_scan_rate_pct']}%", "Scan Rate", True),
+    ]),
+    unsafe_allow_html=True,
+)
 
 tab_geo, tab_crops, tab_tech, tab_demo = st.tabs(
     ["🌍 Geography", "🌾 Crops", "📱 Technology & Reach", "👥 Demographics"]
@@ -92,7 +84,6 @@ with tab_geo:
     col_geo_l, col_geo_r = st.columns(2)
 
     with col_geo_l:
-        # Top 12 states by farmer count — horizontal bar
         top12_states = dict(list(gi["farmers_per_state"].items())[:12])
         states_df = pd.DataFrame(
             {"state": list(top12_states.keys()), "farmers": list(top12_states.values())}
@@ -108,11 +99,12 @@ with tab_geo:
         )
         fig_states.update_layout(**_CHART_LAYOUT)
         fig_states.update_traces(marker_color="#2f7d4c")
+        st.markdown('<div class="kp-home-chart"><div class="kp-home-chart-title">Farmers per State</div>', unsafe_allow_html=True)
         st.plotly_chart(fig_states, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
         st.caption("Longer bars = more growers in that state. Uttar Pradesh and Rajasthan dominate the network.")
 
     with col_geo_r:
-        # Radar chart — language coverage by districts
         lang_dist = gi["language_district_coverage"]
         languages_r = list(lang_dist.keys())
         district_counts_r = list(lang_dist.values())
@@ -136,7 +128,9 @@ with tab_geo:
             showlegend=False,
             **_CHART_LAYOUT,
         )
+        st.markdown('<div class="kp-home-chart"><div class="kp-home-chart-title">Language District Coverage</div>', unsafe_allow_html=True)
         st.plotly_chart(fig_radar, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
         st.caption("Each spoke = a language. Distance from centre = number of districts covered. Wider area = broader reach.")
 
 # ── Tab: Crops ─────────────────────────────────────────────────────────────
@@ -163,10 +157,11 @@ with tab_crops:
         yaxis_title="Crop",
         **_CHART_LAYOUT,
     )
+    st.markdown('<div class="kp-home-chart"><div class="kp-home-chart-title">Crop × State Heatmap</div>', unsafe_allow_html=True)
     st.plotly_chart(fig_heat, use_container_width=True)
+    st.markdown('</div>', unsafe_allow_html=True)
     st.caption("Darker green = more growers growing that crop in that state. Use this to identify crop-state combinations with the largest audience for a campaign.")
 
-    # Donut pie — crop distribution overall
     crop_dist = gi["crop_distribution"]
     crop_colors = ["#2f7d4c", "#5aa876", "#88bb97", "#c07a2b", "#e8a85b"]
     fig_crop_pie = go.Figure(
@@ -178,7 +173,9 @@ with tab_crops:
         )
     )
     fig_crop_pie.update_layout(title="Overall Crop Distribution", **_CHART_LAYOUT)
+    st.markdown('<div class="kp-home-chart"><div class="kp-home-chart-title">Crop Distribution</div>', unsafe_allow_html=True)
     st.plotly_chart(fig_crop_pie, use_container_width=True)
+    st.markdown('</div>', unsafe_allow_html=True)
     st.caption("Share of growers by primary crop. A larger slice means more potential reach for that crop's campaign.")
 
 # ── Tab: Technology & Reach ────────────────────────────────────────────────
@@ -186,7 +183,6 @@ with tab_tech:
     col_tech_l, col_tech_r = st.columns(2)
 
     with col_tech_l:
-        # Donut — device types
         dev = gi["device_types"]
         fig_dev = go.Figure(
             go.Pie(
@@ -197,11 +193,12 @@ with tab_tech:
             )
         )
         fig_dev.update_layout(title="Device Type Distribution", **_CHART_LAYOUT)
+        st.markdown('<div class="kp-home-chart"><div class="kp-home-chart-title">Device Types</div>', unsafe_allow_html=True)
         st.plotly_chart(fig_dev, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
         st.caption("Smartphone owners can receive WhatsApp and SMS campaigns. Non-smartphone growers need a rep field visit.")
 
     with col_tech_r:
-        # Horizontal bar — scan rate % by state with dashed mean line
         scan_by_state = gi["scan_by_state"]
         scan_df = (
             pd.DataFrame(
@@ -229,7 +226,9 @@ with tab_tech:
         )
         fig_scan.update_layout(**_CHART_LAYOUT)
         fig_scan.update_traces(marker_color="#c07a2b")
+        st.markdown('<div class="kp-home-chart"><div class="kp-home-chart-title">Scan Rate by State</div>', unsafe_allow_html=True)
         st.plotly_chart(fig_scan, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
         st.caption("States to the right of the dashed average line have higher product awareness — growers there are warmer leads.")
 
 # ── Tab: Demographics ─────────────────────────────────────────────────────
@@ -237,7 +236,6 @@ with tab_demo:
     col_demo_l, col_demo_r = st.columns(2)
 
     with col_demo_l:
-        # Horizontal bar — avg age by state
         age_by_state = gi["age_by_state"]
         age_df = (
             pd.DataFrame(
@@ -255,11 +253,12 @@ with tab_demo:
         )
         fig_age.update_layout(**_CHART_LAYOUT)
         fig_age.update_traces(marker_color="#5aa876")
+        st.markdown('<div class="kp-home-chart"><div class="kp-home-chart-title">Average Age by State</div>', unsafe_allow_html=True)
         st.plotly_chart(fig_age, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
         st.caption("Younger farmers tend to adopt digital channels faster. Higher average age may mean more rep-assist outreach is needed.")
 
     with col_demo_r:
-        # Gender donut
         gender = gi["gender"]
         fig_gender = go.Figure(
             go.Pie(
@@ -271,10 +270,11 @@ with tab_demo:
             )
         )
         fig_gender.update_layout(**_CHART_LAYOUT)
+        st.markdown('<div class="kp-home-chart"><div class="kp-home-chart-title">Gender Split</div>', unsafe_allow_html=True)
         st.plotly_chart(fig_gender, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
         st.caption("Female farmers show slightly higher response rates in this dataset — a small receptivity bonus is applied during scoring.")
 
-        # Farm size buckets donut
         buckets = gi["farm_size_buckets"]
         farm_colors = ["#1a5c35", "#2f7d4c", "#5aa876", "#88bb97", "#c5e0ca"]
         fig_farm = go.Figure(
@@ -287,7 +287,9 @@ with tab_demo:
             )
         )
         fig_farm.update_layout(**_CHART_LAYOUT)
+        st.markdown('<div class="kp-home-chart"><div class="kp-home-chart-title">Farm Size Distribution</div>', unsafe_allow_html=True)
         st.plotly_chart(fig_farm, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
         st.caption("Small farms (1–2 ac) engage most with campaigns. Large holdings (>10 ac) tend to rely more on direct rep contact.")
 
 

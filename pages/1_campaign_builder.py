@@ -19,6 +19,11 @@ from agents.targeting_agent import run_targeting
 from utils.campaign_store import attach_variants, delete_campaign, load_saved_campaigns, save_plan
 from utils.data_loader import load_digital_funnel, load_growers, load_reps, load_whatsapp
 from utils.ui_theme import apply_theme
+from utils.landing_theme import inject_landing_css, crop_img, IMG_HERO, IMG_PEOPLE
+from utils.overview_theme import (
+    inject_overview_css, camp_header_html, section_label,
+    agent_block_html, oos_block_html, seg_stats_html,
+)
 
 # Needed for lazy import of inventory_analysis inside _load_inv_insights()
 sys.path.insert(0, str(Path(__file__).parent.parent / "Syngenta_IITM_Hackathon_2026_dataset"))
@@ -26,26 +31,55 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "Syngenta_IITM_Hackathon_2
 st.set_page_config(page_title="Campaign Builder · Krishi Pracharak", layout="wide")
 apply_theme()
 
-# ── Sidebar button style ───────────────────────────────────────────────────────
+# ── Sidebar styles ─────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
+/* All sidebar nav buttons — clean, minimal, left-aligned */
 section[data-testid="stSidebar"] .stButton > button {
     background: transparent !important;
-    border: 1px solid transparent !important;
-    border-radius: 8px !important;
+    border: none !important;
+    border-radius: 6px !important;
     text-align: left !important;
     width: 100% !important;
-    padding: 0.3rem 0.7rem !important;
-    color: rgba(210,232,216,0.72) !important;
-    font-size: 0.82rem !important;
+    padding: 0.32rem 0.6rem !important;
+    color: rgba(210,232,216,0.6) !important;
+    font-size: 0.81rem !important;
     font-weight: 400 !important;
     justify-content: flex-start !important;
-    transition: background 0.13s !important;
+    box-shadow: none !important;
+    transition: background 0.1s, color 0.1s !important;
+    line-height: 1.35 !important;
 }
 section[data-testid="stSidebar"] .stButton > button:hover {
-    background: rgba(47,125,76,0.22) !important;
+    background: rgba(255,255,255,0.06) !important;
+    color: rgba(220,240,225,0.92) !important;
+    border: none !important;
+    box-shadow: none !important;
+    transform: none !important;
+}
+/* Primary "New Campaign" button */
+section[data-testid="stSidebar"] .stButton > button[data-testid="baseButton-primary"],
+section[data-testid="stSidebar"] .stButton > button[kind="primary"] {
+    background: #2f7d4c !important;
+    border: none !important;
     color: #fff !important;
-    border-color: rgba(47,125,76,0.4) !important;
+    font-weight: 600 !important;
+    font-size: 0.83rem !important;
+    border-radius: 8px !important;
+    box-shadow: none !important;
+    letter-spacing: 0.01em !important;
+}
+section[data-testid="stSidebar"] .stButton > button[data-testid="baseButton-primary"]:hover,
+section[data-testid="stSidebar"] .stButton > button[kind="primary"]:hover {
+    background: #369958 !important;
+    border: none !important;
+    box-shadow: none !important;
+    transform: none !important;
+}
+/* Remove extra padding Streamlit adds around column widgets in sidebar */
+section[data-testid="stSidebar"] [data-testid="column"] {
+    padding-left: 0.15rem !important;
+    padding-right: 0.15rem !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -269,20 +303,41 @@ def _new_campaign_dialog():
 
 
 # ── Nav helpers ───────────────────────────────────────────────────────────────
-def _active_item(label: str):
+def _active_item(label: str, meta: str = ""):
+    meta_html = (
+        f'<div style="font-size:0.68rem;font-weight:400;color:rgba(180,220,190,0.52);'
+        f'margin-top:0.06rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'
+        f'{meta}</div>'
+    ) if meta else ""
     st.markdown(
-        f'<div style="background:rgba(47,125,76,0.32);border-left:3px solid {_GREEN};'
-        f'border-radius:8px;padding:0.3rem 0.68rem;font-size:0.82rem;font-weight:600;'
-        f'color:#fff;margin-bottom:1px;">{label}</div>',
+        f'<div style="background:rgba(255,255,255,0.08);border-radius:6px;'
+        f'padding:0.32rem 0.6rem;font-size:0.81rem;font-weight:600;'
+        f'color:rgba(220,242,228,0.95);margin-bottom:1px;">{label}{meta_html}</div>',
         unsafe_allow_html=True,
     )
 
 
-def _nav(label: str, key: str, active: bool) -> bool:
+def _nav(label: str, key: str, active: bool, meta: str = "") -> bool:
     if active:
-        _active_item(label)
+        _active_item(label, meta)
         return False
     return st.button(label, key=key, use_container_width=True)
+
+
+def _sidebar_section_label(text: str):
+    st.markdown(
+        f'<p style="font-size:0.62rem;font-weight:500;letter-spacing:0.07em;'
+        f'color:rgba(180,220,190,0.32);text-transform:uppercase;margin:12px 0 1px 4px;'
+        f'padding:0;">{text}</p>',
+        unsafe_allow_html=True,
+    )
+
+
+def _sidebar_divider():
+    st.markdown(
+        '<div style="border-top:1px solid rgba(255,255,255,0.06);margin:10px 0 4px;"></div>',
+        unsafe_allow_html=True,
+    )
 
 
 # ── Overview visual helpers ────────────────────────────────────────────────────
@@ -2046,72 +2101,88 @@ for (cid, crop, product), grp in funnel_df.groupby(
 # SIDEBAR
 # ═══════════════════════════════════════════════════════════════════════════════
 with st.sidebar:
-    st.markdown(
-        '<p style="font-size:0.68rem;font-weight:700;letter-spacing:0.09em;'
-        'color:rgba(180,220,190,0.55);text-transform:uppercase;margin:14px 0 5px 2px;">'
-        'Campaigns</p>',
-        unsafe_allow_html=True,
-    )
-
-    # Digital campaigns (read-only from dataset — no delete)
-    for c in digital:
-        if _nav(c["id"], f"sb_{c['id']}", st.session_state.cb_view == c["id"]):
-            st.session_state.cb_view = c["id"]
-            st.session_state.targeting_plan = None
-            st.session_state.content_variants = None
-            st.session_state.current_campaign_path = None
-            st.session_state.rep_briefing_result = None
-            st.session_state.rep_briefing_rep    = None
-            st.rerun()
-
-    # AI / saved campaigns — name button + ✕ delete button
-    for c in saved_camps:
-        label     = c.get("campaign_name") or c["_filename"].replace(".json", "")
-        is_active = st.session_state.cb_view == c["_id"]
-        col_name, col_del = st.columns([5, 1])
-        with col_name:
-            if is_active:
-                _active_item(label)
-            else:
-                if st.button(label, key=f"sb_{c['_id']}", use_container_width=True):
-                    st.session_state.cb_view = c["_id"]
-                    st.session_state.targeting_plan = {
-                        k: v for k, v in c.items() if not str(k).startswith("_")
-                    }
-                    st.session_state.content_variants    = c.get("content_variants")
-                    st.session_state.current_campaign_path = c.get("_path")
-                    st.session_state.rep_briefing_result = None
-                    st.session_state.rep_briefing_rep    = None
-                    st.rerun()
-        with col_del:
-            if st.session_state.confirm_delete_id == c["_id"]:
-                st.caption("Delete?")
-                cc1, cc2 = st.columns(2)
-                if cc1.button("Yes", key=f"delyes_{c['_id']}", use_container_width=True):
-                    delete_campaign(c["_path"])
-                    st.session_state.confirm_delete_id = None
-                    if st.session_state.cb_view == c["_id"]:
-                        st.session_state.cb_view = "welcome"
-                        st.session_state.targeting_plan = None
-                        st.session_state.content_variants = None
-                        st.session_state.current_campaign_path = None
-                        st.session_state.rep_briefing_result = None
-                        st.session_state.rep_briefing_rep    = None
-                    st.rerun()
-                if cc2.button("No", key=f"delno_{c['_id']}", use_container_width=True):
-                    st.session_state.confirm_delete_id = None
-                    st.rerun()
-            else:
-                if st.button("✕", key=f"del_{c['_id']}", help=f"Delete {label}"):
-                    st.session_state.confirm_delete_id = c["_id"]
-                    st.rerun()
-
-    st.markdown(
-        '<div style="border-top:1px solid rgba(255,255,255,0.08);margin:10px 0 6px;"></div>',
-        unsafe_allow_html=True,
-    )
-    if st.button("＋  New Campaign", key="sb_new", use_container_width=True):
+    # ── New Campaign — primary action at the top ───────────────────────────────
+    st.markdown('<div style="padding:2px 0 4px;"></div>', unsafe_allow_html=True)
+    if st.button("＋  New Campaign", key="sb_new", type="primary", use_container_width=True):
         _new_campaign_dialog()
+
+    # ── AI / saved campaigns ───────────────────────────────────────────────────
+    if saved_camps:
+        _sidebar_divider()
+        for c in saved_camps:
+            label     = c.get("campaign_name") or c["_filename"].replace(".json", "")
+            is_active = st.session_state.cb_view == c["_id"]
+            seg_count = len(c.get("segments") or [])
+            gen_at    = (c.get("generated_at") or "")[:10]
+            is_stub   = c.get("stub", False)
+            meta      = "⚙ Draft" if is_stub else " · ".join(filter(None, [
+                f"{seg_count} seg" if seg_count else "",
+                gen_at,
+            ]))
+
+            if st.session_state.confirm_delete_id == c["_id"]:
+                # Confirmation block — replaces normal item row
+                st.markdown(
+                    f'<div style="background:rgba(160,40,40,0.14);border:1px solid rgba(200,80,80,0.28);'
+                    f'border-radius:8px;padding:0.38rem 0.65rem 0.28rem;margin:2px 0;">'
+                    f'<div style="font-size:0.74rem;color:rgba(255,150,150,0.9);font-weight:600;">'
+                    f'Delete "{label[:22]}{"…" if len(label) > 22 else ""}"?</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+                cc1, cc2 = st.columns(2)
+                with cc1:
+                    if st.button("Delete", key=f"delyes_{c['_id']}", use_container_width=True):
+                        delete_campaign(c["_path"])
+                        st.session_state.confirm_delete_id = None
+                        if st.session_state.cb_view == c["_id"]:
+                            st.session_state.cb_view = "welcome"
+                            st.session_state.targeting_plan = None
+                            st.session_state.content_variants = None
+                            st.session_state.current_campaign_path = None
+                            st.session_state.rep_briefing_result = None
+                            st.session_state.rep_briefing_rep    = None
+                        st.rerun()
+                with cc2:
+                    if st.button("Cancel", key=f"delno_{c['_id']}", use_container_width=True):
+                        st.session_state.confirm_delete_id = None
+                        st.rerun()
+            else:
+                col_name, col_del = st.columns([6, 1])
+                with col_name:
+                    if is_active:
+                        _active_item(label, meta)
+                    else:
+                        if st.button(label, key=f"sb_{c['_id']}", use_container_width=True):
+                            st.session_state.cb_view = c["_id"]
+                            st.session_state.targeting_plan = {
+                                k: v for k, v in c.items() if not str(k).startswith("_")
+                            }
+                            st.session_state.content_variants    = c.get("content_variants")
+                            st.session_state.current_campaign_path = c.get("_path")
+                            st.session_state.rep_briefing_result = None
+                            st.session_state.rep_briefing_rep    = None
+                            st.rerun()
+                with col_del:
+                    if st.button("✕", key=f"del_{c['_id']}", help=f"Delete {label}",
+                                 use_container_width=True):
+                        st.session_state.confirm_delete_id = c["_id"]
+                        st.rerun()
+
+    # ── Dataset campaigns ──────────────────────────────────────────────────────
+    if digital:
+        _sidebar_divider()
+        for c in digital:
+            is_active = st.session_state.cb_view == c["id"]
+            meta = f"{c['crop'].title()} · {_fmt(c['impressions'])} impr"
+            if _nav(c["id"], f"sb_{c['id']}", is_active, meta):
+                st.session_state.cb_view = c["id"]
+                st.session_state.targeting_plan = None
+                st.session_state.content_variants = None
+                st.session_state.current_campaign_path = None
+                st.session_state.rep_briefing_result = None
+                st.session_state.rep_briefing_rep    = None
+                st.rerun()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -2122,96 +2193,139 @@ view = st.session_state.cb_view
 
 # ── WELCOME ───────────────────────────────────────────────────────────────────
 if view == "welcome":
-    # Hero
+    inject_landing_css()
+
+    total_impr   = funnel_df["social_post_impression"].sum()
+    total_visits = funnel_df["landing_page_visits"].sum()
+    total_leads  = funnel_df["lead_form_submission"].sum()
+    total_camps  = len(digital) + len(saved_camps)
+
+    # ── Hero — full-bleed image with overlay text ──────────────────────────────
     st.markdown(
-        """
-<div style="background:linear-gradient(135deg,#1a3d28 0%,#2f7d4c 55%,#1a3d28 100%);
-border-radius:20px;padding:2.2rem 2.6rem 2rem;margin-bottom:1.6rem;
-box-shadow:0 16px 48px rgba(47,125,76,0.24);position:relative;overflow:hidden;">
-  <div style="position:absolute;top:-40px;right:-40px;width:220px;height:220px;
-  border-radius:50%;background:rgba(255,255,255,0.04);pointer-events:none;"></div>
-  <div style="position:absolute;bottom:-60px;left:30%;width:280px;height:280px;
-  border-radius:50%;background:rgba(255,255,255,0.03);pointer-events:none;"></div>
-  <h2 style="color:#fff;font-size:2.1rem;font-weight:700;margin:0.65rem 0 0.45rem;
-  letter-spacing:-0.025em;font-family:'Source Serif 4',serif;">Krishi Pracharak</h2>
-  <p style="color:rgba(255,255,255,0.78);font-size:0.96rem;margin:0 0 1.1rem;max-width:560px;
-  line-height:1.65;">AI-driven targeting across 6,000+ growers — score, segment, generate
-  multilingual content, and brief field reps. Select a campaign or start a new one.</p>
-  <div style="display:flex;gap:1rem;flex-wrap:wrap;">
-    <div style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.18);
-    border-radius:12px;padding:0.7rem 1.1rem;">
-      <div style="color:#fff;font-size:1.4rem;font-weight:700;font-family:'Source Serif 4',serif;">6,000+</div>
-      <div style="color:rgba(255,255,255,0.6);font-size:0.68rem;text-transform:uppercase;letter-spacing:0.06em;">Farmers Tracked</div>
+        f"""
+<div class="kp-hero">
+  <img class="kp-hero-img" src="{IMG_HERO}" alt="Agricultural field at sunset" />
+  <div class="kp-hero-overlay"></div>
+  <div class="kp-hero-content">
+    <div class="kp-hero-kicker">
+      <span>🌾</span> Syngenta · Campaign Intelligence
     </div>
-    <div style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.18);
-    border-radius:12px;padding:0.7rem 1.1rem;">
-      <div style="color:#fff;font-size:1.4rem;font-weight:700;font-family:'Source Serif 4',serif;">10</div>
-      <div style="color:rgba(255,255,255,0.6);font-size:0.68rem;text-transform:uppercase;letter-spacing:0.06em;">States Covered</div>
-    </div>
-    <div style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.18);
-    border-radius:12px;padding:0.7rem 1.1rem;">
-      <div style="color:#fff;font-size:1.4rem;font-weight:700;font-family:'Source Serif 4',serif;">6</div>
-      <div style="color:rgba(255,255,255,0.6);font-size:0.68rem;text-transform:uppercase;letter-spacing:0.06em;">Languages</div>
-    </div>
-    <div style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.18);
-    border-radius:12px;padding:0.7rem 1.1rem;">
-      <div style="color:#ffd8a0;font-size:1.4rem;font-weight:700;font-family:'Source Serif 4',serif;">4</div>
-      <div style="color:rgba(255,255,255,0.6);font-size:0.68rem;text-transform:uppercase;letter-spacing:0.06em;">AI Personas</div>
+    <h1 class="kp-hero-title">Krishi Pracharak</h1>
+    <p class="kp-hero-sub">
+      AI-driven grower targeting across India — score receptivity, segment by crop &amp; risk,
+      generate multilingual outreach, and brief field reps. All in one operational flow.
+    </p>
+    <div class="kp-hero-stats">
+      <div class="kp-hero-stat">
+        <div class="kp-hero-stat-val">6,000+</div>
+        <div class="kp-hero-stat-lbl">Growers</div>
+      </div>
+      <div class="kp-hero-stat">
+        <div class="kp-hero-stat-val">10</div>
+        <div class="kp-hero-stat-lbl">States</div>
+      </div>
+      <div class="kp-hero-stat">
+        <div class="kp-hero-stat-val">33</div>
+        <div class="kp-hero-stat-lbl">Districts</div>
+      </div>
+      <div class="kp-hero-stat">
+        <div class="kp-hero-stat-val accent">{_fmt(total_leads)}</div>
+        <div class="kp-hero-stat-lbl">Leads</div>
+      </div>
+      <div class="kp-hero-stat">
+        <div class="kp-hero-stat-val">{_fmt(total_impr)}</div>
+        <div class="kp-hero-stat-lbl">Impressions</div>
+      </div>
+      <div class="kp-hero-stat">
+        <div class="kp-hero-stat-val">6</div>
+        <div class="kp-hero-stat-lbl">Languages</div>
+      </div>
     </div>
   </div>
 </div>""",
         unsafe_allow_html=True,
     )
 
-    # Key metrics
-    s1, s2, s3, s4 = st.columns(4)
-    s1.metric("Total Campaigns",   len(digital) + len(saved_camps),
-              help="Digital campaigns from dataset + AI campaigns created in this tool")
-    s2.metric("Total Impressions", _fmt(funnel_df["social_post_impression"].sum()),
-              help="Sum of social media ad impressions across all digital campaigns")
-    s3.metric("Total Visits",      _fmt(funnel_df["landing_page_visits"].sum()),
-              help="Landing page visits driven by digital campaign ads")
-    s4.metric("Total Leads",       _fmt(funnel_df["lead_form_submission"].sum()),
-              help="Lead form submissions — growers who expressed direct interest")
+    # ── How it works ───────────────────────────────────────────────────────────
+    st.markdown(
+        """
+<div class="kp-how-strip">
+  <div class="kp-how-step">
+    <div class="kp-how-num">01</div>
+    <div class="kp-how-icon">🎯</div>
+    <div class="kp-how-label">Score Growers</div>
+    <div class="kp-how-desc">15+ signals — crop stage, purchase history, weather risk, device type</div>
+    <div class="kp-how-arrow">→</div>
+  </div>
+  <div class="kp-how-step">
+    <div class="kp-how-num">02</div>
+    <div class="kp-how-icon">🧩</div>
+    <div class="kp-how-label">AI Segmentation</div>
+    <div class="kp-how-desc">Claude agent segments by crop, state, persona &amp; outbreak risk</div>
+    <div class="kp-how-arrow">→</div>
+  </div>
+  <div class="kp-how-step">
+    <div class="kp-how-num">03</div>
+    <div class="kp-how-icon">✍️</div>
+    <div class="kp-how-label">Generate Content</div>
+    <div class="kp-how-desc">WhatsApp, SMS, IVR &amp; poster in Hindi, Marathi, Punjabi &amp; more</div>
+    <div class="kp-how-arrow">→</div>
+  </div>
+  <div class="kp-how-step">
+    <div class="kp-how-num">04</div>
+    <div class="kp-how-icon">📋</div>
+    <div class="kp-how-label">Brief Field Reps</div>
+    <div class="kp-how-desc">Ranked weekly action list — restock alerts, visit gaps, offline growers</div>
+    <div class="kp-how-arrow">→</div>
+  </div>
+</div>""",
+        unsafe_allow_html=True,
+    )
 
-    st.markdown("<div style='margin-top:1.2rem;'></div>", unsafe_allow_html=True)
+    # ── Section header ─────────────────────────────────────────────────────────
+    st.markdown(
+        f'<div class="kp-section-head">'
+        f'<span class="kp-section-title">All Campaigns</span>'
+        f'<span class="kp-section-count">{total_camps} campaigns</span>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
 
-    # ── Unified campaign grid (digital + AI, no division) ─────────────────────
-    all_card_cols = st.columns(2, gap="medium")
+    # ── Campaign grid ──────────────────────────────────────────────────────────
+    all_card_cols = st.columns(3, gap="medium")
     col_idx = 0
 
-    # Digital campaign cards
     for dc in digital:
-        with all_card_cols[col_idx % 2]:
-            visit_badge = (
-                f'<span style="background:#e8f5e9;color:#1a5c35;border-radius:999px;'
-                f'padding:0.1rem 0.5rem;font-size:0.68rem;font-weight:600;">'
-                f'Visit {dc["visit_rate"]:.1f}%</span>'
-            )
-            lead_badge = (
-                f'<span style="background:#fff3e0;color:#c07a2b;border-radius:999px;'
-                f'padding:0.1rem 0.5rem;font-size:0.68rem;font-weight:600;">'
-                f'Lead {dc["lead_rate"]:.1f}%</span>'
-            )
+        with all_card_cols[col_idx % 3]:
+            img = crop_img(dc["crop"])
             st.markdown(
-                f'<div class="kp-camp-card">'
-                f'<div class="kp-camp-typetag">{dc["crop"].title()}</div>'
-                f'<div class="kp-camp-name">{dc["id"]}</div>'
-                f'<div class="kp-camp-meta">{dc["product"]} &nbsp;·&nbsp; {dc["start"]} → {dc["end"]}</div>'
-                f'<div class="kp-camp-stats">'
-                f'<div><div class="kp-camp-stat-val">{_fmt(dc["impressions"])}</div>'
-                f'<div class="kp-camp-stat-lbl">Impressions</div></div>'
-                f'<div><div class="kp-camp-stat-val">{_fmt(dc["visits"])}</div>'
-                f'<div class="kp-camp-stat-lbl">Visits</div></div>'
-                f'<div><div class="kp-camp-stat-val">{_fmt(dc["leads"])}</div>'
-                f'<div class="kp-camp-stat-lbl">Leads</div></div>'
+                f'<div class="kp-ccard">'
+                f'<img class="kp-ccard-img" src="{img}" alt="{dc["crop"]}" />'
+                f'<div class="kp-ccard-body">'
+                f'<div class="kp-ccard-top">'
+                f'<span class="kp-ccard-type">{dc["crop"].title()}</span>'
+                f'<span class="kp-ccard-badge kp-ccard-badge-green">Digital</span>'
                 f'</div>'
-                f'<div style="margin-top:0.6rem;display:flex;gap:0.4rem;">{visit_badge}{lead_badge}</div>'
-                f'</div>',
+                f'<div class="kp-ccard-name">{dc["id"]}</div>'
+                f'<div class="kp-ccard-meta">{dc["product"]} · {dc["start"][:7]}</div>'
+                f'<div class="kp-ccard-stats">'
+                f'<div class="kp-ccard-stat kp-ccard-stat-n">'
+                f'<div class="kp-stat-val">{_fmt(dc["impressions"])}</div>'
+                f'<div class="kp-stat-lbl">Impr</div></div>'
+                f'<div class="kp-ccard-stat kp-ccard-stat-n">'
+                f'<div class="kp-stat-val">{_fmt(dc["visits"])}</div>'
+                f'<div class="kp-stat-lbl">Visits</div></div>'
+                f'<div class="kp-ccard-stat kp-ccard-stat-g">'
+                f'<div class="kp-stat-val kp-stat-val-g">{_fmt(dc["leads"])}</div>'
+                f'<div class="kp-stat-lbl">Leads</div></div>'
+                f'</div>'
+                f'<div class="kp-ccard-rates">'
+                f'Visit rate {dc["visit_rate"]:.1f}% &nbsp;·&nbsp; Lead rate {dc["lead_rate"]:.1f}%'
+                f'</div>'
+                f'</div></div>',
                 unsafe_allow_html=True,
             )
-            if st.button(f"Open {dc['id']}", key=f"wc_{dc['id']}", use_container_width=True,
-                         help=f"Open {dc['id']}"):
+            if st.button("Open campaign →", key=f"wc_{dc['id']}", use_container_width=True):
                 st.session_state.cb_view = dc["id"]
                 st.session_state.targeting_plan = None
                 st.session_state.content_variants = None
@@ -2221,47 +2335,43 @@ box-shadow:0 16px 48px rgba(47,125,76,0.24);position:relative;overflow:hidden;">
                 st.rerun()
         col_idx += 1
 
-    # AI / saved campaign cards — same grid, continued
     for sc in saved_camps:
-        with all_card_cols[col_idx % 2]:
+        with all_card_cols[col_idx % 3]:
             sc_name    = sc.get("campaign_name") or sc["_filename"].replace(".json", "")
-            sc_segs    = sc.get("segments", [])
+            sc_segs    = sc.get("segments") or []
             sc_growers = sum(s.get("grower_count", 0) for s in sc_segs)
-            sc_date    = sc.get("generated_at", "")[:10] or "—"
-            sc_obj     = sc.get("campaign_objective", "")
+            sc_date    = (sc.get("generated_at") or "")[:10] or "—"
+            sc_obj     = sc.get("campaign_objective") or "AI Campaign"
             is_draft   = sc.get("stub", False) or not sc_segs
-            status_badge = (
-                '<span style="background:#f0f0f0;color:#888;border-radius:999px;'
-                'padding:0.1rem 0.5rem;font-size:0.66rem;font-weight:600;">⚙ Draft</span>'
-                if is_draft else
-                f'<span style="background:#e8f5e9;color:#1a5c35;border-radius:999px;'
-                f'padding:0.1rem 0.5rem;font-size:0.66rem;font-weight:600;">'
-                f'✓ {len(sc_segs)} seg · {sc_growers:,} growers</span>'
-            )
-            type_label = sc_obj if sc_obj else "AI Campaign"
+            sc_crop    = sc_segs[0].get("crop", "") if sc_segs else ""
+            badge_cls  = "kp-ccard-badge-gray" if is_draft else "kp-ccard-badge-green"
+            badge_txt  = "⚙ Draft" if is_draft else f"✓ {len(sc_segs)} segments"
+            img        = crop_img(sc_crop) if sc_crop else IMG_PEOPLE
             st.markdown(
-                f'<div class="kp-camp-card">'
-                f'<div style="display:flex;justify-content:space-between;align-items:flex-start;">'
-                f'<div style="flex:1;min-width:0;">'
-                f'<div class="kp-camp-typetag">{type_label}</div>'
-                f'<div class="kp-camp-name">{sc_name}</div>'
-                f'<div class="kp-camp-meta">Created {sc_date}</div>'
+                f'<div class="kp-ccard">'
+                f'<img class="kp-ccard-img" src="{img}" alt="campaign" />'
+                f'<div class="kp-ccard-body">'
+                f'<div class="kp-ccard-top">'
+                f'<span class="kp-ccard-type">{sc_obj}</span>'
+                f'<span class="kp-ccard-badge {badge_cls}">{badge_txt}</span>'
                 f'</div>'
-                f'<div style="margin-left:0.5rem;flex-shrink:0;">{status_badge}</div>'
+                f'<div class="kp-ccard-name">{sc_name}</div>'
+                f'<div class="kp-ccard-meta">Created {sc_date}</div>'
+                f'<div class="kp-ccard-growers">'
+                f'{"Draft — no segments yet" if is_draft else f"{sc_growers:,} growers targeted"}'
                 f'</div>'
-                f'</div>',
+                f'</div></div>',
                 unsafe_allow_html=True,
             )
-            if st.button(f"Open {sc_name}", key=f"wsc_{sc['_id']}", use_container_width=True,
-                         help=f"Open {sc_name}"):
+            if st.button("Open campaign →", key=f"wsc_{sc['_id']}", use_container_width=True):
                 st.session_state.cb_view = sc["_id"]
                 st.session_state.targeting_plan = {
                     k: v for k, v in sc.items() if not str(k).startswith("_")
                 }
-                st.session_state.content_variants     = sc.get("content_variants")
+                st.session_state.content_variants      = sc.get("content_variants")
                 st.session_state.current_campaign_path = sc.get("_path")
-                st.session_state.rep_briefing_result  = None
-                st.session_state.rep_briefing_rep     = None
+                st.session_state.rep_briefing_result   = None
+                st.session_state.rep_briefing_rep      = None
                 st.rerun()
         col_idx += 1
 
@@ -2269,32 +2379,21 @@ box-shadow:0 16px 48px rgba(47,125,76,0.24);position:relative;overflow:hidden;">
 # ── DIGITAL CAMPAIGN ──────────────────────────────────────────────────────────
 elif any(c["id"] == view for c in digital):
     c = next(x for x in digital if x["id"] == view)
+    inject_overview_css()
 
     st.markdown(
-        f"""
-<div style="background:linear-gradient(135deg,#1a3d28 0%,#2f7d4c 55%,#1a3d28 100%);
-border-radius:18px;padding:1.6rem 2rem 1.4rem;margin-bottom:1.5rem;
-box-shadow:0 12px 36px rgba(47,125,76,0.2);">
-  <div style="font-size:0.72rem;font-weight:600;letter-spacing:0.08em;
-  color:rgba(212,237,218,0.7);text-transform:uppercase;margin-bottom:0.3rem;">Digital Campaign</div>
-  <h2 style="color:#fff;font-size:1.7rem;font-weight:700;margin:0 0 0.25rem;
-  letter-spacing:-0.02em;">{c['id']}</h2>
-  <div style="color:rgba(255,255,255,0.78);font-size:0.92rem;margin-bottom:0.8rem;">
-    {c['crop'].title()} &nbsp;·&nbsp; {c['product']} &nbsp;·&nbsp; {c['start']} → {c['end']}
-  </div>
-  <div style="display:flex;gap:1.4rem;flex-wrap:wrap;">
-    <span style="color:#fff;font-size:0.88rem;"><strong>{_fmt(c['impressions'])}</strong>
-    <span style="opacity:.7;font-size:0.78rem;"> Impressions</span></span>
-    <span style="color:#fff;font-size:0.88rem;"><strong>{_fmt(c['visits'])}</strong>
-    <span style="opacity:.7;font-size:0.78rem;"> Visits</span></span>
-    <span style="color:#fff;font-size:0.88rem;"><strong>{_fmt(c['leads'])}</strong>
-    <span style="opacity:.7;font-size:0.78rem;"> Leads</span></span>
-    <span style="background:rgba(255,255,255,0.15);border-radius:999px;padding:0.18rem 0.7rem;
-    font-size:0.78rem;color:#d4edda;font-weight:600;">Visit {c['visit_rate']:.1f}%</span>
-    <span style="background:rgba(192,122,43,0.35);border-radius:999px;padding:0.18rem 0.7rem;
-    font-size:0.78rem;color:#ffd8a0;font-weight:600;">Lead {c['lead_rate']:.1f}%</span>
-  </div>
-</div>""",
+        camp_header_html(
+            title=c["id"],
+            kicker="Digital Campaign",
+            meta=f"{c['crop'].title()} · {c['product']} · {c['start']} → {c['end']}",
+            pills=[
+                (f"{_fmt(c['impressions'])} Impressions", "white"),
+                (f"{_fmt(c['visits'])} Visits", "white"),
+                (f"{_fmt(c['leads'])} Leads", "green"),
+                (f"Visit rate {c['visit_rate']:.1f}%", "white"),
+                (f"Lead rate {c['lead_rate']:.1f}%", "amber"),
+            ],
+        ),
         unsafe_allow_html=True,
     )
 
@@ -2306,68 +2405,42 @@ box-shadow:0 12px 36px rgba(47,125,76,0.2);">
         grower_state_map = _grower_states_by_crop(c["crop"])
         weeks_ts = [pd.Timestamp(w) for w in c["weeks"]]
 
+        fig_sp = go.Figure(go.Scatter(
+            x=c["weeks"], y=c["weekly_imp"], mode="lines",
+            line=dict(color=_GREEN, width=2.5),
+            fill="tozeroy", fillcolor="rgba(47,125,76,0.10)", hoverinfo="skip",
+        ))
+        fig_sp.update_layout(**_layout_with(
+            height=180,
+            xaxis=dict(visible=True, showgrid=False, tickfont=dict(size=10)),
+            yaxis=dict(visible=True, showgrid=True, gridcolor="rgba(0,0,0,0.04)",
+                       tickfont=dict(size=10)),
+            showlegend=False,
+            plot_bgcolor="#fffdf7", paper_bgcolor="#fffdf7",
+            margin=dict(l=8, r=8, t=8, b=8),
+        ))
+
         if grower_state_map and weeks_ts:
             ov1, ov2 = st.columns([3, 2])
             with ov1:
-                gn_rows = [{"Campaign": c["id"], "Start": weeks_ts[0],
-                            "Finish": weeks_ts[-1] + timedelta(days=7), "Type": "Active Period"}]
-                fig_gn = px.timeline(pd.DataFrame(gn_rows), x_start="Start", x_end="Finish",
-                                     y="Campaign", color="Type",
-                                     color_discrete_sequence=[_GREEN])
-                fig_gn.update_layout(**_layout_with(height=100, showlegend=False,
-                                                     margin=dict(l=10, r=10, t=20, b=10)))
-                fig_gn.update_yaxes(autorange="reversed")
-                st.plotly_chart(fig_gn, use_container_width=True, config={"displayModeBar": False})
-
-                fig_sp = go.Figure(go.Scatter(
-                    x=c["weeks"], y=c["weekly_imp"], mode="lines",
-                    line=dict(color=_GREEN, width=2),
-                    fill="tozeroy", fillcolor="rgba(47,125,76,0.12)", hoverinfo="skip",
-                ))
-                fig_sp.update_layout(**_layout_with(
-                    height=160,
-                    xaxis=dict(visible=True, showgrid=False),
-                    yaxis=dict(visible=True, showgrid=True, gridcolor="rgba(0,0,0,0.05)"),
-                    showlegend=False, xaxis_title="Week", yaxis_title="Impressions",
-                ))
-                st.caption("Weekly social ad impressions over the campaign's run. Peaks indicate high-reach weeks.")
+                section_label("Weekly Impressions")
+                st.markdown('<div class="kp-chart-wrap">', unsafe_allow_html=True)
                 st.plotly_chart(fig_sp, use_container_width=True, config={"displayModeBar": False})
-
+                st.markdown('</div>', unsafe_allow_html=True)
             with ov2:
-                st.markdown("**Active States**")
-                st.caption("Bubble size = grower count. Hover for exact numbers.")
+                section_label("Active States")
                 _render_geo_map(grower_state_map)
         elif weeks_ts:
-            # No grower-state data — show timeline only (full width)
-            gn_rows = [{"Campaign": c["id"], "Start": weeks_ts[0],
-                        "Finish": weeks_ts[-1] + timedelta(days=7), "Type": "Active Period"}]
-            fig_gn = px.timeline(pd.DataFrame(gn_rows), x_start="Start", x_end="Finish",
-                                 y="Campaign", color="Type",
-                                 color_discrete_sequence=[_GREEN])
-            fig_gn.update_layout(**_layout_with(height=100, showlegend=False,
-                                                 margin=dict(l=10, r=10, t=20, b=10)))
-            fig_gn.update_yaxes(autorange="reversed")
-            st.plotly_chart(fig_gn, use_container_width=True, config={"displayModeBar": False})
-
-            fig_sp = go.Figure(go.Scatter(
-                x=c["weeks"], y=c["weekly_imp"], mode="lines",
-                line=dict(color=_GREEN, width=2),
-                fill="tozeroy", fillcolor="rgba(47,125,76,0.12)", hoverinfo="skip",
-            ))
-            fig_sp.update_layout(**_layout_with(
-                height=160,
-                xaxis=dict(visible=True, showgrid=False),
-                yaxis=dict(visible=True, showgrid=True, gridcolor="rgba(0,0,0,0.05)"),
-                showlegend=False, xaxis_title="Week", yaxis_title="Impressions",
-            ))
-            st.caption("Weekly social ad impressions over the campaign's run. Peaks indicate high-reach weeks.")
+            section_label("Weekly Impressions")
+            st.markdown('<div class="kp-chart-wrap">', unsafe_allow_html=True)
             st.plotly_chart(fig_sp, use_container_width=True, config={"displayModeBar": False})
+            st.markdown('</div>', unsafe_allow_html=True)
 
         if grower_state_map:
-            st.markdown("**Field Conditions**")
+            section_label("Field Conditions")
             _render_weather_cards(list(grower_state_map.keys())[:5])
 
-        st.markdown("#### Weekly Breakdown")
+        section_label("Weekly Breakdown")
         wdf = (
             funnel_df[funnel_df["campaign_id"] == view]
             .sort_values("week_start_date")
@@ -2514,24 +2587,30 @@ elif any(c["_id"] == view for c in saved_camps):
         f'</span>'
     )
 
+    inject_overview_css()
+
+    _meta_parts = [', '.join(crops) if crops else '—', f"Created {gen_at}"]
+    if date_win.get("start"):
+        _meta_parts.append(f"{date_win['start']} → {date_win['end']}")
+
+    if is_stub:
+        _pills = [("⚙ Draft — run targeting to activate", "draft")]
+    else:
+        _pills = [
+            (f"{qs.get('total_growers', '—')} Scored", "white"),
+            (f"{c.get('total_eligible', '—')} Eligible", "green"),
+            (f"{len(segs)} Segments", "white"),
+        ]
+        if _oos_count:
+            _pills.append((f"{_oos_count} Out-of-stock blocked", "amber"))
+
     st.markdown(
-        f"""
-<div style="background:linear-gradient(135deg,#1a3d28 0%,#2f7d4c 55%,#1a3d28 100%);
-border-radius:18px;padding:1.6rem 2rem 1.4rem;margin-bottom:1.5rem;
-box-shadow:0 12px 36px rgba(47,125,76,0.2);">
-  <div style="font-size:0.72rem;font-weight:600;letter-spacing:0.08em;
-  color:rgba(212,237,218,0.7);text-transform:uppercase;margin-bottom:0.3rem;">
-  {camp_obj or 'AI Campaign'}</div>
-  <h2 style="color:#fff;font-size:1.7rem;font-weight:700;margin:0 0 0.25rem;
-  letter-spacing:-0.02em;">{camp_name}</h2>
-  <div style="color:rgba(255,255,255,0.78);font-size:0.92rem;margin-bottom:0.8rem;">
-    {', '.join(crops) if crops else '—'} &nbsp;·&nbsp; Created {gen_at}
-    {f" &nbsp;·&nbsp; {date_win['start']} → {date_win['end']}" if date_win.get('start') else ""}
-  </div>
-  <div style="display:flex;gap:1.4rem;flex-wrap:wrap;">
-    {_draft_badge if is_stub else _stats_html}
-  </div>
-</div>""",
+        camp_header_html(
+            title=camp_name,
+            kicker=camp_obj or "AI Campaign",
+            meta=" · ".join(_meta_parts),
+            pills=_pills,
+        ),
         unsafe_allow_html=True,
     )
 
@@ -2542,7 +2621,7 @@ box-shadow:0 12px 36px rgba(47,125,76,0.2);">
     with tab_ov:
         if is_stub:
             # ── Targeting form for new/draft campaigns ─────────────────────────
-            st.markdown("### Configure Campaign Targeting")
+            section_label("Configure Campaign Targeting")
             st.caption("This campaign hasn't been run yet. Set your targeting parameters below.")
             growers_df = load_growers()
             raw_crops  = (growers_df["grower_crop_calendar"].dropna()
@@ -2691,21 +2770,20 @@ box-shadow:0 12px 36px rgba(47,125,76,0.2);">
                                     f'`{tc["tool"]}` → `{json.dumps(tc["args"])}`',
                                 )
                 qsp = plan.get("quality_summary", {})
-                mm1, mm2, mm3, mm4 = st.columns(4)
-                mm1.metric("Growers Scored",       qsp.get("total_growers", "-"),
-                           help="Total growers evaluated after applying crop and state filters")
-                mm2.metric("Eligible",             plan.get("total_eligible", "-"),
-                           help="Growers above the 0.30 receptivity threshold with product in stock")
-                mm3.metric("Pre-OOS Eligible",     plan.get("total_eligible_pre_oos", "-"),
-                           help="Growers above threshold before the inventory gate — some will be blocked if product is OOS")
-                mm4.metric("No Digital Channel",   qsp.get("non_smartphone", "-"),
-                           help="Non-smartphone growers who can't receive WhatsApp/SMS — need rep field visits")
+                st.markdown(
+                    seg_stats_html(
+                        scored=qsp.get("total_growers", 0),
+                        eligible=plan.get("total_eligible", 0),
+                        non_smartphone=qsp.get("non_smartphone", 0),
+                        segments=len(plan.get("segments", [])),
+                    ),
+                    unsafe_allow_html=True,
+                )
                 segs_new = plan.get("segments", [])
                 if segs_new:
                     dw = plan.get("date_window") or {}
                     _render_segment_overview(segs_new, plan.get("reference_date", start_date), dw)
-                    st.divider()
-                    st.markdown(f"#### Targeting Segments ({len(segs_new)})")
+                    section_label(f"Targeting Segments ({len(segs_new)})")
                     _render_segment_cards(segs_new)
         else:
             # ── Normal saved campaign overview ─────────────────────────────────
@@ -2716,33 +2794,39 @@ box-shadow:0 12px 36px rgba(47,125,76,0.2);">
                 n_tools = len(ai_ins_saved.get("tool_calls_made", []))
                 n_segs  = ai_ins_saved.get("segments_prioritised", 0)
                 st.markdown(
-                    f'<div style="background:linear-gradient(135deg,#0d2318 0%,#172d1e 100%);'
-                    f'border-radius:12px;padding:0.85rem 1.15rem;margin-bottom:0.5rem;'
-                    f'border:1px solid rgba(47,125,76,0.4);">'
-                    f'<div style="font-size:0.68rem;font-weight:700;color:rgba(212,237,218,0.6);'
-                    f'text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.3rem;">'
-                    f'🤖 AI Segmentation Agent · {n_tools} tool calls · {n_segs} segments prioritised</div>'
-                    f'<div style="font-size:0.88rem;color:#d4edda;line-height:1.6;">'
-                    f'{ai_ins_saved["campaign_advice"]}</div>'
-                    f'</div>',
+                    agent_block_html(
+                        kicker=f"AI Segmentation Agent · {n_tools} tool calls · {n_segs} segments prioritised",
+                        body=ai_ins_saved["campaign_advice"],
+                    ),
                     unsafe_allow_html=True,
                 )
             if c.get("oos_blocked"):
                 grouped_oos = _summarize_oos_blocks(c["oos_blocked"])
-                st.warning(
-                    f"**{len(c['oos_blocked'])} campaign(s) paused — "
-                    f"{len(grouped_oos)} grouped out-of-stock risk bucket(s)**\n\n"
-                    + "\n".join(
-                        f"- **{b['crop'].title()}** in {b['state']}: {b['product']} "
-                        f"({b['grower_count']} growers) — {b['reason']}"
-                        for b in grouped_oos
-                    )
+                st.markdown(
+                    oos_block_html(
+                        title=f"{len(c['oos_blocked'])} group(s) paused — out-of-stock risk",
+                        items=[
+                            f"{b['crop'].title()} in {b['state']}: {b['product']} "
+                            f"({b['grower_count']} growers) — {b['reason']}"
+                            for b in grouped_oos
+                        ],
+                    ),
+                    unsafe_allow_html=True,
                 )
             if segs:
+                qs_s = c.get("quality_summary", {})
+                st.markdown(
+                    seg_stats_html(
+                        scored=qs_s.get("total_growers", 0),
+                        eligible=c.get("total_eligible", 0),
+                        non_smartphone=qs_s.get("non_smartphone", 0),
+                        segments=len(segs),
+                    ),
+                    unsafe_allow_html=True,
+                )
                 _render_segment_overview(segs, c.get("reference_date", date.today()),
                                          date_win or None)
-                st.divider()
-                st.markdown(f"#### Targeting Segments ({len(segs)})")
+                section_label(f"Targeting Segments ({len(segs)})")
                 _render_segment_cards(segs)
             st.download_button(
                 "⬇ Download JSON",
