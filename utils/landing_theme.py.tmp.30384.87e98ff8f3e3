@@ -26,15 +26,6 @@ def inject_landing_css() -> None:
   font-family: "Space Grotesk", sans-serif;
 }
 
-/* Remove Streamlit top padding inside columns that contain campaign cards */
-[data-testid="stVerticalBlockBorderWrapper"]:has(.kp-ccard) {
-  padding-top: 0 !important;
-}
-div:has(> .kp-ccard) {
-  padding-top: 0 !important;
-  margin-top: 0 !important;
-}
-
 /* ── Hero ────────────────────────────────────────────────────────────────────── */
 .kp-hero {
   position: relative;
@@ -60,9 +51,9 @@ div:has(> .kp-ccard) {
   inset: 0;
   background: linear-gradient(
     to top,
-    rgba(10,22,14,0.95) 0%,
-    rgba(10,22,14,0.72) 45%,
-    rgba(10,22,14,0.45) 100%
+    rgba(10,22,14,0.92) 0%,
+    rgba(10,22,14,0.55) 45%,
+    rgba(10,22,14,0.12) 100%
   );
 }
 .kp-hero-content {
@@ -89,16 +80,16 @@ div:has(> .kp-ccard) {
 }
 .kp-hero-title {
   font-family: "Source Serif 4", serif;
-  font-size: 3.98rem !important;
-  font-weight: 800 !important;
-  color: #F97316 !important;
+  font-size: 3rem;
+  font-weight: 700;
+  color: #ffffff;
   letter-spacing: -0.03em;
   line-height: 1.08;
   margin: 0 0 0.65rem;
-  text-shadow: 0 2px 20px rgba(0,0,0,0.6);
+  text-shadow: 0 2px 24px rgba(0,0,0,0.9), 0 1px 4px rgba(0,0,0,0.8);
 }
 .kp-hero-sub {
-  color: white;
+  color: rgba(220,240,228,0.82);
   font-size: 1rem;
   line-height: 1.65;
   max-width: 540px;
@@ -233,7 +224,6 @@ div:has(> .kp-ccard) {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  padding-top: 0 !important;
 }
 .kp-ccard:hover {
   border-color: #b8d4be;
@@ -241,9 +231,8 @@ div:has(> .kp-ccard) {
 }
 .kp-ccard-img {
   width: 100%;
-  height: 160px;
+  height: 120px;
   object-fit: cover;
-  object-position: center center;
   display: block;
   flex-shrink: 0;
 }

@@ -19,7 +19,7 @@ from agents.targeting_agent import run_targeting
 from utils.campaign_store import attach_variants, delete_campaign, load_saved_campaigns, save_plan
 from utils.data_loader import load_digital_funnel, load_growers, load_reps, load_whatsapp
 from utils.ui_theme import apply_theme
-from utils.landing_theme import inject_landing_css, crop_img, IMG_HERO, IMG_PEOPLE
+from utils.landing_theme import inject_landing_css, crop_img, IMG_HERO, IMG_PEOPLE, IMG_FARMER_RICE
 from utils.overview_theme import (
     inject_overview_css, camp_header_html, section_label,
     agent_block_html, oos_block_html, seg_stats_html,
@@ -2220,7 +2220,7 @@ if view == "welcome":
     st.markdown(
         f"""
 <div class="kp-hero">
-  <img class="kp-hero-img" src="{IMG_HERO}" alt="Agricultural field at sunset" />
+  <img class="kp-hero-img" src="https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=1920&q=80" alt="Indian farm field" style="object-fit: cover;" />
   <div class="kp-hero-overlay"></div>
   <div class="kp-hero-content">
     <div class="kp-hero-kicker">

@@ -187,16 +187,24 @@ with tab_crops:
     st.caption("Darker green = more growers growing that crop in that state. Use this to identify crop-state combinations with the largest audience for a campaign.")
 
     crop_dist = gi["crop_distribution"]
-    crop_colors = ["#2f7d4c", "#5aa876", "#88bb97", "#c07a2b", "#e8a85b"]
+    crop_colors = ["#2f7d4c", "#5aa876", "#88bb97", "#a8d4b4", "#c07a2b",
+                   "#e8a85b", "#f0c88a", "#1a5c35", "#3d9960", "#6db88a",
+                   "#d4ead9", "#8ab89a"]
+    n = len(crop_dist)
     fig_crop_pie = go.Figure(
         go.Pie(
             labels=list(crop_dist.keys()),
             values=list(crop_dist.values()),
             hole=0.45,
-            marker=dict(colors=crop_colors),
+            marker=dict(colors=crop_colors[:n]),
+            textfont=dict(color="#1a2520", size=12),
         )
     )
-    fig_crop_pie.update_layout(title="Overall Crop Distribution", **_CHART_LAYOUT)
+    fig_crop_pie.update_layout(
+        title="Overall Crop Distribution",
+        legend=dict(font=dict(color="#1a2520", size=11)),
+        **_CHART_LAYOUT,
+    )
     st.markdown('<div class="kp-home-chart"><div class="kp-home-chart-title">Crop Distribution</div>', unsafe_allow_html=True)
     st.plotly_chart(fig_crop_pie, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
@@ -214,9 +222,14 @@ with tab_tech:
                 values=list(dev.values()),
                 hole=0.45,
                 marker=dict(colors=["#2f7d4c", "#88bb97", "#d0e8d5"]),
+                textfont=dict(color="#1a2520", size=12),
             )
         )
-        fig_dev.update_layout(title="Device Type Distribution", **_CHART_LAYOUT)
+        fig_dev.update_layout(
+            title="Device Type Distribution",
+            legend=dict(font=dict(color="#1a2520", size=11)),
+            **_CHART_LAYOUT,
+        )
         st.markdown('<div class="kp-home-chart"><div class="kp-home-chart-title">Device Types</div>', unsafe_allow_html=True)
         st.plotly_chart(fig_dev, use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
@@ -290,10 +303,13 @@ with tab_demo:
                 values=[gender["male"], gender["female"]],
                 hole=0.45,
                 marker=dict(colors=["#2f7d4c", "#c07a2b"]),
-                title=dict(text="Gender Split"),
+                textfont=dict(color="#1a2520", size=12),
             )
         )
-        fig_gender.update_layout(**_CHART_LAYOUT)
+        fig_gender.update_layout(
+            legend=dict(font=dict(color="#1a2520", size=11)),
+            **_CHART_LAYOUT,
+        )
         st.markdown('<div class="kp-home-chart"><div class="kp-home-chart-title">Gender Split</div>', unsafe_allow_html=True)
         st.plotly_chart(fig_gender, use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
@@ -307,10 +323,13 @@ with tab_demo:
                 values=list(buckets.values()),
                 hole=0.45,
                 marker=dict(colors=farm_colors),
-                title=dict(text="Farm Size Distribution"),
+                textfont=dict(color="#1a2520", size=12),
             )
         )
-        fig_farm.update_layout(**_CHART_LAYOUT)
+        fig_farm.update_layout(
+            legend=dict(font=dict(color="#1a2520", size=11)),
+            **_CHART_LAYOUT,
+        )
         st.markdown('<div class="kp-home-chart"><div class="kp-home-chart-title">Farm Size Distribution</div>', unsafe_allow_html=True)
         st.plotly_chart(fig_farm, use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)

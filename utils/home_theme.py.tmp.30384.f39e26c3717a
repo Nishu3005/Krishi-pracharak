@@ -23,6 +23,8 @@ def inject_home_css() -> None:
   position: absolute;
   inset: 0;
   
+  width: 100%;
+  height: 100%;
   object-fit: cover;
   object-position: center 50%;
   display: block;
@@ -146,7 +148,7 @@ def inject_home_css() -> None:
 def home_hero_html(subtitle: str) -> str:
     return (
         f'<div class="kp-home-hero">'
-        f'<img class="kp-home-hero-img" src="{IMG_HERO}" alt="Agricultural field" />'
+        f'<img class="kp-home-hero-img" src="{IMG_SUNFLOWER}" alt="Agricultural field" />'
         f'<div class="kp-home-hero-overlay"></div>'
         f'<div class="kp-home-hero-content">'
         f'<div class="kp-home-hero-kicker">🌾 Syngenta · Grower Intelligence</div>'

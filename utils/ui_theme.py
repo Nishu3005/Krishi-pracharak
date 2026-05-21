@@ -290,12 +290,20 @@ p  { color: var(--ink-soft); line-height: 1.65; }
   border-color: var(--line) !important;
   font-family: "Space Grotesk", sans-serif !important;
   background: var(--paper) !important;
+  color: #1a2520 !important;
+}
+
+[data-baseweb="input"] input::placeholder,
+[data-baseweb="textarea"] textarea::placeholder {
+  color: #8a9e92 !important;
+  opacity: 1 !important;
 }
 
 [data-baseweb="input"] input:focus,
 [data-baseweb="textarea"] textarea:focus {
   border-color: var(--accent) !important;
   box-shadow: 0 0 0 2px var(--accent-soft) !important;
+  color: #1a2520 !important;
 }
 
 /* Selectbox */
@@ -303,6 +311,26 @@ p  { color: var(--ink-soft); line-height: 1.65; }
   border-radius: var(--radius-sm) !important;
   border-color: var(--line) !important;
   background: var(--paper) !important;
+  color: #1a2520 !important;
+}
+
+/* Selectbox selected value text */
+[data-baseweb="select"] [data-testid="stSelectboxValue"],
+[data-baseweb="select"] span,
+[data-baseweb="select"] div[class*="placeholder"],
+[data-baseweb="select"] input {
+  color: #1a2520 !important;
+}
+
+/* Selectbox dropdown options */
+[data-baseweb="menu"] li,
+[data-baseweb="popover"] li {
+  color: #1a2520 !important;
+  background: var(--paper) !important;
+}
+[data-baseweb="menu"] li:hover,
+[data-baseweb="popover"] li:hover {
+  background: var(--accent-soft) !important;
 }
 
 /* Multiselect tags */
@@ -318,6 +346,10 @@ p  { color: var(--ink-soft); line-height: 1.65; }
 [data-baseweb="datepicker"] {
   border-radius: var(--radius-sm) !important;
 }
+[data-baseweb="datepicker"] input {
+  color: #1a2520 !important;
+  background: var(--paper) !important;
+}
 
 /* Labels */
 [data-testid="stWidgetLabel"] {
@@ -325,6 +357,14 @@ p  { color: var(--ink-soft); line-height: 1.65; }
   font-size: 0.8rem !important;
   color: var(--ink-soft) !important;
   letter-spacing: 0.01em !important;
+}
+
+/* ── Button text visibility ───────────────────────────────────────────────────── */
+[data-testid="baseButton-secondary"] {
+  color: #1a2520 !important;
+}
+[data-testid="baseButton-primary"] {
+  color: #ffffff !important;
 }
 
 /* ── Info / Warning / Success / Error boxes ──────────────────────────────────── */
