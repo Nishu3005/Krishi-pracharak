@@ -6,6 +6,34 @@ Krishi Pracharak ("Farm Advocate") turns raw field data into hyper-local campaig
 
 ---
 
+## Screenshots
+
+### Configure Campaign Targeting
+
+Set objectives, crops, states, date range, and channel mix — the AI targeting agent scores all 6,000 growers and returns prioritised segments in seconds.
+
+![Configure Campaign Targeting](assets/create-new-camp.png)
+
+### Campaign Overview — Timeline & Active States Map
+
+Gantt-style segment timeline coloured by crop type, alongside a live India bubble map sized by grower count per state.
+
+![Campaign Overview](assets/overvirw.png)
+
+### AI Agronomic Advisory & Pest Outbreak Alerts
+
+Real-time weather-driven disease and pest risk analysis with AI-generated field advisory for each segment, including rep action scripts.
+
+![Overview Pest Alerts](assets/overview-pest.png)
+
+### Multilingual Content Generation
+
+AI-generated WhatsApp messages, SMS, IVR scripts, and campaign posters in regional languages (Hindi, Bengali, Gujarati, Marathi, Punjabi, Kannada) — one per segment.
+
+![Content Generation](assets/contents-generated.png)
+
+---
+
 ## What it does
 
 | Problem Statement Requirement | How this platform addresses it |
@@ -14,65 +42,6 @@ Krishi Pracharak ("Farm Advocate") turns raw field data into hyper-local campaig
 | Optimise campaign targeting and timing | Targeting agent scores every grower, applies crop-stage timing logic, gates out OOS territories, and routes to the right channel before sending anything |
 | Predict campaign receptivity | 7-signal heuristic scoring model (0–1) combining timing urgency, engagement history, farm size, state baseline, fatigue penalty, scan signal, and gender signal |
 | Scale personalisation to thousands | Micro-segmentation clusters growers by (crop × state × channel × persona) with a 20-grower minimum; a single LLM call produces content for each cluster, not each individual |
-
----
-
-## Architecture
-
-```
-app.py  (Streamlit home — grower network + field force analytics)
-│
-├── pages/1_campaign_builder.py      ← Campaign list + detail (Overview / Content / Receptivity)
-│       │
-│       ├── agents/targeting_agent.py
-│       │       └── utils/features.py  →  utils/receptivity_score.py
-│       │               └── utils/crop_calendar.py
-│       │
-│       └── agents/content_agent.py
-│               └── utils/ai_client.py  (Token Router)
-│
-└── pages/2_rep_briefing.py          ← Inventory intelligence + field execution layer
-        └── agents/rep_agent.py
-                ├── reads data/targeting_plan.json  (written by targeting_agent)
-                └── utils/ai_client.py
-```
-
-**Agent coordination:** `targeting_agent` writes `data/targeting_plan.json`. `rep_agent` reads it to surface rep-assist growers — agents share state via a plain JSON file, no message bus needed.
-
----
-
-## Pages
-
-### 1 — Campaign Builder
-
-- Sidebar lists all active campaigns by name and a **＋ New Campaign** entry.
-- Clicking a campaign opens a hero banner, then three horizontal tabs:
-  - **Overview** — Gantt timeline, India geo map of active states, live weather cards (Open-Meteo, no key), rationale, and segments table.
-  - **Content Generation** — generates WhatsApp, SMS, IVR, and poster variants per segment. Each asset shows status badge (success / fallback), character count, and model used. One automatic retry on API failure before falling back to a safe placeholder.
-  - **Receptivity** — score distribution, per-signal contribution, state and farm-size breakdowns, channel split.
-- **New Campaign form**: campaign name, objective, crop, state, date window (start → end), channel mix multi-select, and optional budget. These are stored top-level in the campaign JSON, not buried in `source_meta`.
-
-### 2 — Rep Briefing
-
-- **Inventory Intelligence** section shows stock health across 4 000 retailers: OOS rate by SKU, weekly stock trends, and an OOS-rate heatmap (SKU × week).
-- Pick a rep and reference date, then **Generate Briefing** computes OOS slope from last 4 weekly inventory snapshots, detects visit gaps (21-day threshold), pulls rep-assist growers from the targeting plan, and asks Haiku for a 3–4 sentence action briefing.
-- Shows metric cards, ranked action expanders, and an offline-grower table.
-
----
-
-## Scoring model — 7 signals
-
-| Signal | Max contribution | Notes |
-|---|---|---|
-| Timing urgency | 0.25 | Peaks 7 days before crop stage; season-phase fallback for other crops |
-| State baseline | 0.15 | MP highest; Haryana lowest |
-| Farm size tier | 0.10 | 1–2 ac best; 5+ ac lowest |
-| Scan signal | +0.06 | Grower scanned QR and is reachable digitally |
-| Engagement history | +0.05 | Previous WA message opened |
-| Gender signal | +0.02 | Female grower (documented uplift in data) |
-| Fatigue penalty | −0.08 | Offline device AND scan signal both present (contradictory — likely stale data) |
-
-Eligibility threshold: **score ≥ 0.30**. Scores below this are not targeted.
 
 ---
 
@@ -125,56 +94,6 @@ streamlit run app.py
 ```
 
 Open `http://localhost:8501` in your browser.
-
----
-
-## File structure
-
-```text
-syngenta/
-├── app.py                          # Home page — grower network + field force analytics
-├── pages/
-│   ├── 1_campaign_builder.py       # Campaign list, detail view, content gen, receptivity
-│   └── 2_rep_briefing.py           # Inventory intelligence + field rep briefing
-├── agents/
-│   ├── targeting_agent.py          # Scoring → segmentation → OOS gate → rationale
-│   ├── content_agent.py            # Multilingual WA/SMS/IVR/poster generation
-│   └── rep_agent.py                # OOS slope + visit gap + rep-assist actions
-├── utils/
-│   ├── ai_client.py                # Token Router singleton client
-│   ├── campaign_store.py           # JSON persistence for campaigns (save, attach, load)
-│   ├── crop_calendar.py            # Stage-based and season-phase timing logic
-│   ├── data_loader.py              # @st.cache_data loaders for all 8 CSVs
-│   ├── features.py                 # Joins all signals into a flat grower feature frame
-│   ├── product_catalog.py          # Hardcoded 12-SKU catalog + campaign product mapping
-│   ├── receptivity_score.py        # 7-signal heuristic scorer
-│   ├── targeting_logic.py          # Shared product selection + OOS block lookup
-│   ├── weather_client.py           # Open-Meteo weather fetch (free, no key, hard fallback)
-│   └── ui_theme.py                 # apply_theme() and render_hero() shared by all pages
-├── Syngenta_IITM_Hackathon_2026_dataset/
-│   ├── growers_analysis.py         # Deep grower insights (demographics, crop, language, device)
-│   ├── reps_analysis.py            # Field force coverage analysis (territory, tehsil density)
-│   ├── inventory_analysis.py       # OOS risk, stock trends, depletion slope per SKU
-│   └── *.csv                       # Raw dataset files (8 CSVs)
-├── spec/                           # Design decisions, data analysis, model choices
-├── data/                           # Runtime output: targeting_plan.json, etc. (git-ignored)
-├── requirements.txt
-├── .env.example
-└── .env                            # Not committed — copy from .env.example
-```
-
----
-
-## Key design decisions
-
-- **No database.** State flows through JSON files in `data/`. Agents read and write plain files — simple to inspect, simple to demo.
-- **OOS gate.** If a product is trending out-of-stock in a territory, campaigns for that product are blocked. Showing judges an OOS-aware system is the differentiator.
-- **Channel routing.** Non-smartphone growers (≈26% of the dataset) are never sent WhatsApp messages. They are routed to `rep_assist` and surfaced in the rep briefing.
-- **Minimum segment size (20 growers).** Prevents micro-fragments that would generate content for 1–2 people. Sub-threshold clusters are merged into the nearest (crop, channel) peer.
-- **Receptivity insights integrated into campaigns.** Rather than a separate page, receptivity charts live inside each campaign's detail view — so evidence is co-located with the targeting decision it validates.
-- **Weather context without an API key.** Open-Meteo is called at runtime; `utils/weather_client.py` enforces a 5-second timeout and returns `None` on any failure. The UI renders cards that say "No data" rather than throwing an error.
-- **Campaign identity as a first-class field.** `campaign_name`, `campaign_objective`, `date_window`, and `channel_mix` are stored top-level in the campaign JSON — not buried in `source_meta` — so the sidebar, hero banner, and overview tab can read them directly.
-- **Content generation with retry + metadata.** Each format (WhatsApp, SMS, IVR, poster) is wrapped in a single-retry call. The variant JSON includes `status`, `char_count`, `generated_at`, and `model` per format so the UI can show evidence of quality without re-running.
 
 ---
 

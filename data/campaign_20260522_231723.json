@@ -132,5 +132,59 @@
     "campaign_advice": "Segmentation agent unavailable: Expecting value: line 1 column 1 (char 0)",
     "tool_calls_made": [],
     "segments_prioritised": 0
+  },
+  "source_meta": {
+    "source_type": "new_campaign",
+    "source_crop": [
+      "chickpea"
+    ],
+    "state_filter": [
+      "Uttar Pradesh"
+    ]
+  },
+  "artifacts": {
+    "plan_saved_at": "2026-05-22T17:48:45.079764",
+    "variants_saved_at": "2026-05-22T17:51:08.463594"
+  },
+  "content_variants": {
+    "generated_at": "2026-05-22T17:51:08.462984",
+    "total_segments": 1,
+    "variants": {
+      "SEG_001": {
+        "channel": "whatsapp",
+        "language": "Hindi",
+        "persona": "awareness",
+        "whatsapp": "आपके चने की फसल को कीटों से बचाएं। Actara 25 WG से जैसिड्स, थ्रिप्स और माहू को खत्म करें। अभी अपने दुकानदार से मिलें और सही खुराक जानें। 📞",
+        "whatsapp_meta": {
+          "status": "success",
+          "char_count": 138,
+          "generated_at": "2026-05-22T17:51:03.925235",
+          "model": "anthropic/claude-haiku-4.5"
+        },
+        "sms": "आपके चने की फसल में कीटों से बचाव के लिए Actara 25 WG का छिड़काव करें। सभी हानिकारक कीटों को खत्म करता है। आज ही आर्डर करें।",
+        "sms_meta": {
+          "status": "success",
+          "char_count": 124,
+          "generated_at": "2026-05-22T17:51:03.925247",
+          "model": "anthropic/claude-haiku-4.5"
+        },
+        "ivr_script": "नमस्ते किसान भाई! अभी आपके चने में फलियाँ बन रही हैं। इसी समय माहू, सफेद मक्खी और थ्रिप्स का बहुत खतरा रहता है। ये कीड़े आपकी फसल को नुकसान पहुँचाते हैं।\n\nअच्छी खबर है! Actara 25 WG इन सभी कीड़ों को मार देता है। बस पानी में मिलाकर छिड़काव करें। यह दवा पौधे के अंदर जाकर काम करती है।\n\nअपने नजदीकी Syngenta डीलर से Actara माँगिए। आपकी फसल सुरक्षित रहेगी!",
+        "ivr_meta": {
+          "status": "success",
+          "char_count": 352,
+          "generated_at": "2026-05-22T17:51:03.925252",
+          "model": "anthropic/claude-haiku-4.5"
+        },
+        "poster_image_url": null,
+        "poster_file_path": "C:\\Users\\ASUS\\Desktop\\hackathon\\syngenta\\github-folder\\Krishi-pracharak\\data\\posters\\test-003_SEG_001_175103.png",
+        "poster_status": "success",
+        "poster_prompt_used": "Professional agricultural marketing poster. Background: photorealistic chickpea field in Uttar Pradesh, India — lush, healthy crop in the golden hour light. Foreground: product packaging of 'Actara 25 WG' displayed prominently with a clean label. Feature this person prominently as a brand ambassador in the foreground: A young adult male, approximately 20–30 years old, wearing a light plaid button-up shirt with sleeves rolled up and a dark vest, standing with arms crossed in a calm, composed demeanor. He has short curly hair, light facial stubble, and carries a backpack, projecting a casual, everyday look.. Poster style: clean educational poster with soft greens and blue sky. Informative, inviting layout. Typography: bold product name 'Actara 25 WG' at top, crop stage context 'pod_formation (101 days ago)' as a subheading. A call-to-action banner at the bottom in Hindi script. Syngenta logo area at the bottom corner. Overall look: high-quality print-ready marketing poster, 1:1 square format, no watermarks, photorealistic background with clean vector overlay text. Make it look like a real Syngenta India advertisement.",
+        "poster_generated_at": "2026-05-22T17:51:03.925259",
+        "models_used": {
+          "text": "anthropic/claude-haiku-4.5",
+          "image": "openai/gpt-5-image"
+        }
+      }
+    }
   }
 }

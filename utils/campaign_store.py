@@ -38,6 +38,24 @@ def attach_variants(path: Path, variants: dict) -> None:
     path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
+def attach_overview_cache(path: Path, advisory: str, images: dict[str, str]) -> None:
+    """Save the AI agronomic advisory text and outbreak image file paths to the campaign JSON."""
+    if not path.exists():
+        return
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return
+    payload.setdefault("overview_cache", {})
+    if advisory:
+        payload["overview_cache"]["advisory"] = advisory
+    if images:
+        payload["overview_cache"].setdefault("outbreak_images", {}).update(images)
+    payload.setdefault("artifacts", {})
+    payload["artifacts"]["overview_cache_saved_at"] = datetime.utcnow().isoformat()
+    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
 def delete_campaign(path: "str | Path") -> bool:
     p = Path(path)
     if p.exists() and p.is_file():

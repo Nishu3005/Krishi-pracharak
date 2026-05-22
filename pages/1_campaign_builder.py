@@ -13,10 +13,10 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 import time as _time
-from agents.content_agent import run_content_generation_streaming, describe_promoter
+from agents.content_agent import run_content_generation_streaming, run_content_generation_parallel, describe_promoter
 from agents.rep_agent import run_rep_briefing
 from agents.targeting_agent import run_targeting
-from utils.campaign_store import attach_variants, delete_campaign, load_saved_campaigns, save_plan
+from utils.campaign_store import attach_variants, attach_overview_cache, delete_campaign, load_saved_campaigns, save_plan
 from utils.data_loader import load_digital_funnel, load_growers, load_reps, load_whatsapp
 from utils.ui_theme import apply_theme
 from utils.landing_theme import inject_landing_css, crop_img, IMG_HERO, IMG_PEOPLE, IMG_FARMER_RICE
@@ -34,7 +34,7 @@ apply_theme()
 # ── Sidebar styles ─────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-/* All sidebar nav buttons — clean, minimal, left-aligned */
+/* ── All sidebar nav buttons — clean, minimal, left-aligned ─────────────────── */
 section[data-testid="stSidebar"] .stButton > button {
     background: transparent !important;
     border: none !important;
@@ -76,10 +76,29 @@ section[data-testid="stSidebar"] .stButton > button[kind="primary"]:hover {
     box-shadow: none !important;
     transform: none !important;
 }
+/* ── Delete icon buttons (✕) — faint, icon-only style ───────────────────────── */
+/* Target buttons whose text is exactly ✕ */
+section[data-testid="stSidebar"] .stButton > button:has(p:only-child) {
+    padding: 0.2rem 0.4rem !important;
+}
+section[data-testid="stSidebar"] [data-testid^="del_"] > button,
+section[data-testid="stSidebar"] button[data-testid^="del_"] {
+    background: transparent !important;
+    border: none !important;
+    color: rgba(200,100,100,0.4) !important;
+    font-size: 0.7rem !important;
+    padding: 0.2rem 0.4rem !important;
+    border-radius: 4px !important;
+}
+section[data-testid="stSidebar"] [data-testid^="del_"] > button:hover,
+section[data-testid="stSidebar"] button[data-testid^="del_"]:hover {
+    background: rgba(180,40,40,0.18) !important;
+    color: rgba(255,110,110,0.9) !important;
+}
 /* Remove extra padding Streamlit adds around column widgets in sidebar */
 section[data-testid="stSidebar"] [data-testid="column"] {
-    padding-left: 0.15rem !important;
-    padding-right: 0.15rem !important;
+    padding-left: 0.1rem !important;
+    padding-right: 0.1rem !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -149,9 +168,27 @@ for _k, _v in [
     ("promoter_image_b64", None),
     ("promoter_description", None),
     ("confirm_delete_id", None),
+    ("_qp_initialised", False),
 ]:
     if _k not in st.session_state:
         st.session_state[_k] = _v
+
+# ── URL ↔ view sync (runs once on first load, then kept in sync on navigation) ─
+# Reading ?c=<campaign_stem> opens that campaign; no param → welcome screen.
+if not st.session_state._qp_initialised:
+    _qp_c = st.query_params.get("c", "")
+    if _qp_c and _qp_c != "welcome":
+        # Lazy-load the campaign from disk so we can pre-populate session state
+        _all_saved = load_saved_campaigns()
+        _match = next((x for x in _all_saved if x["_id"] == _qp_c), None)
+        if _match:
+            st.session_state.cb_view = _qp_c
+            st.session_state.targeting_plan = {
+                k: v for k, v in _match.items() if not str(k).startswith("_")
+            }
+            st.session_state.content_variants = _match.get("content_variants")
+            st.session_state.current_campaign_path = _match.get("_path")
+    st.session_state._qp_initialised = True
 
 
 # ── Generic helpers ───────────────────────────────────────────────────────────
@@ -209,8 +246,10 @@ def _scored_df():
 
 
 @st.cache_data(show_spinner=False, ttl=3600)
-def _disease_ai_overview(alerts_json: str) -> str:
-    """AI agronomic field advisory summarising all active outbreak alerts."""
+def _disease_ai_overview(alerts_json: str, cached: str = "") -> str:
+    """AI agronomic field advisory. Returns cached value immediately if available."""
+    if cached:
+        return cached
     try:
         from utils.ai_client import call_text, TEXT_MODEL_FAST
         alerts = json.loads(alerts_json)
@@ -237,11 +276,22 @@ def _disease_ai_overview(alerts_json: str) -> str:
         return ""
 
 
-@st.cache_data(show_spinner=False, ttl=7200)
+@st.cache_data(show_spinner=False)
 def _disease_outbreak_image(risk_type: str, crop: str, disease_name: str) -> str | None:
-    """Generate an AI image for a disease/pest outbreak alert. Cached per disease × crop."""
+    """Generate an AI image, save to data/images/, return file path. Cached permanently per disease×crop."""
     try:
         from utils.ai_client import call_image, IMAGE_MODEL
+        # Check disk cache first
+        safe = re.sub(r"[^a-z0-9_]", "_", f"{risk_type}_{crop}_{disease_name}".lower())
+        img_dir = Path(__file__).parent.parent / "data" / "images"
+        img_dir.mkdir(parents=True, exist_ok=True)
+        existing = list(img_dir.glob(f"{safe}*.png"))
+        if existing:
+            # Return as data URI from saved file
+            img_bytes = existing[0].read_bytes()
+            import base64
+            return "data:image/png;base64," + base64.b64encode(img_bytes).decode()
+
         if risk_type == "fungal":
             prompt = (
                 f"Extreme close-up agricultural photograph of {disease_name} fungal disease "
@@ -256,7 +306,14 @@ def _disease_outbreak_image(risk_type: str, crop: str, disease_name: str) -> str
             )
         else:
             return None
-        return call_image(IMAGE_MODEL, prompt)
+
+        raw = call_image(IMAGE_MODEL, prompt)
+        if raw and raw.startswith("data:image/"):
+            import base64
+            _, b64data = raw.split(",", 1)
+            fpath = img_dir / f"{safe}_{int(_time.time())}.png"
+            fpath.write_bytes(base64.b64decode(b64data))
+        return raw
     except Exception:
         return None
 
@@ -514,9 +571,10 @@ def _render_weather_cards(active_states: list[str]):
         st.caption("Weather data unavailable — network may be offline.")
 
 
-def _render_disease_alerts(segs: list[dict]) -> None:
-    """Show disease/pest outbreak alerts with AI field advisory and AI-generated images."""
-    # ── Collect unique alerts ──────────────────────────────────────────────────
+def _render_disease_alerts(segs: list[dict], campaign_path: str | None = None,
+                           cached_advisory: str = "", cached_images: dict | None = None) -> None:
+    """Show disease/pest outbreak alerts. Uses cached advisory/images if available."""
+    cached_images = cached_images or {}
     alerts = []
     seen   = set()
     for seg in segs:
@@ -543,10 +601,14 @@ def _render_disease_alerts(segs: list[dict]) -> None:
         st.caption("✅ No disease or pest outbreak alerts for this campaign's regions.")
         return
 
-    # ── AI field advisory ──────────────────────────────────────────────────────
+    # ── AI field advisory — use cache, generate only if missing ───────────────
+    new_images: dict[str, str] = {}
     if alerts:
-        with st.spinner("Generating AI agronomic advisory…"):
-            advisory = _disease_ai_overview(json.dumps(alerts))
+        if cached_advisory:
+            advisory = cached_advisory
+        else:
+            with st.spinner("Generating AI agronomic advisory…"):
+                advisory = _disease_ai_overview(json.dumps(alerts))
         if advisory:
             st.markdown(
                 f'<div style="background:linear-gradient(135deg,#0d2318 0%,#1a3d28 100%);'
@@ -559,6 +621,9 @@ def _render_disease_alerts(segs: list[dict]) -> None:
                 f'</div>',
                 unsafe_allow_html=True,
             )
+            # Save advisory to campaign JSON if freshly generated
+            if advisory and not cached_advisory and campaign_path:
+                attach_overview_cache(Path(campaign_path), advisory, {})
 
     # ── Alert cards with AI-generated outbreak images ─────────────────────────
     _LEVEL_STYLE = {
@@ -577,14 +642,19 @@ def _render_disease_alerts(segs: list[dict]) -> None:
         risk_type   = a.get("type") or ""
         crop        = a.get("crop", "")
         disease_name = a["title"].split(" Risk")[0].split(" Surge")[0].strip()
+        img_cache_key = f"{risk_type}_{crop}_{disease_name}"
 
-        # Left: AI outbreak image  |  Right: alert text
         img_col, txt_col = st.columns([1, 3], gap="small")
 
         with img_col:
             if risk_type in ("fungal", "pest") and crop:
-                with st.spinner(f"Generating {disease_name} image…"):
-                    img_src = _disease_outbreak_image(risk_type, crop, disease_name)
+                if img_cache_key in cached_images:
+                    img_src = cached_images[img_cache_key]
+                else:
+                    with st.spinner(f"Generating {disease_name} image…"):
+                        img_src = _disease_outbreak_image(risk_type, crop, disease_name)
+                    if img_src:
+                        new_images[img_cache_key] = img_src
                 if img_src:
                     st.markdown(
                         f'<img src="{img_src}" style="width:100%;border-radius:10px;'
@@ -699,8 +769,13 @@ def _render_disease_alerts(segs: list[dict]) -> None:
             unsafe_allow_html=True,
         )
 
+    # ── Persist any newly generated images to campaign JSON ───────────────────
+    if new_images and campaign_path:
+        attach_overview_cache(Path(campaign_path), "", new_images)
 
-def _render_segment_overview(segs: list[dict], reference_date, date_window: dict | None = None):
+
+def _render_segment_overview(segs: list[dict], reference_date, date_window: dict | None = None,
+                             campaign_path: str | None = None, overview_cache: dict | None = None):
     active_states = list({s["state"] for s in segs if s.get("state")})
     state_grower: dict[str, int] = {}
     for s in segs:
@@ -723,7 +798,13 @@ def _render_segment_overview(segs: list[dict], reference_date, date_window: dict
             "Derived from real-time weather — high humidity + rain = fungal risk; "
             "hot + dry = pest surge. Alerts boost receptivity scores and adjust campaign messaging."
         )
-        _render_disease_alerts(segs)
+        _ov_cache = overview_cache or {}
+        _render_disease_alerts(
+            segs,
+            campaign_path=campaign_path,
+            cached_advisory=_ov_cache.get("advisory", ""),
+            cached_images=_ov_cache.get("outbreak_images", {}),
+        )
 
 
 # ── Segment "why" explanation helper ──────────────────────────────────────────
@@ -947,8 +1028,153 @@ def _find_unicode_font() -> str | None:
     return None
 
 
+def _build_india_map_png(seg_map: dict, variants: dict) -> bytes | None:
+    """Render a Plotly bubble map of India with targeted states highlighted. Returns PNG bytes."""
+    try:
+        import plotly.graph_objects as go
+        import plotly.io as pio
+    except ImportError:
+        return None
+
+    # Indian state centroids (lat, lon)
+    STATE_COORDS: dict[str, tuple[float, float]] = {
+        "andhra pradesh": (15.9129, 79.7400),
+        "arunachal pradesh": (27.1004, 93.6167),
+        "assam": (26.2006, 92.9376),
+        "bihar": (25.0961, 85.3131),
+        "chhattisgarh": (21.2787, 81.8661),
+        "goa": (15.2993, 74.1240),
+        "gujarat": (22.2587, 71.1924),
+        "haryana": (29.0588, 76.0856),
+        "himachal pradesh": (31.1048, 77.1734),
+        "jharkhand": (23.6102, 85.2799),
+        "karnataka": (15.3173, 75.7139),
+        "kerala": (10.8505, 76.2711),
+        "madhya pradesh": (22.9734, 78.6569),
+        "maharashtra": (19.7515, 75.7139),
+        "manipur": (24.6637, 93.9063),
+        "meghalaya": (25.4670, 91.3662),
+        "mizoram": (23.1645, 92.9376),
+        "nagaland": (26.1584, 94.5624),
+        "odisha": (20.9517, 85.0985),
+        "punjab": (31.1471, 75.3412),
+        "rajasthan": (27.0238, 74.2179),
+        "sikkim": (27.5330, 88.5122),
+        "tamil nadu": (11.1271, 78.6569),
+        "telangana": (17.1232, 79.2088),
+        "tripura": (23.9408, 91.9882),
+        "uttar pradesh": (26.8467, 80.9462),
+        "uttarakhand": (30.0668, 79.0193),
+        "west bengal": (22.9868, 87.8550),
+        "delhi": (28.7041, 77.1025),
+        "jammu and kashmir": (33.7782, 76.5762),
+        "ladakh": (34.1526, 77.5770),
+        "chandigarh": (30.7333, 76.7794),
+    }
+
+    # Aggregate growers per state across all segments
+    state_growers: dict[str, int] = {}
+    state_crops: dict[str, list[str]] = {}
+    for seg_id, seg in seg_map.items():
+        if seg_id not in variants:
+            continue
+        state = (seg.get("state") or "").lower().strip()
+        crop  = (seg.get("crop") or "").title()
+        cnt   = int(seg.get("grower_count") or 0)
+        if state:
+            state_growers[state] = state_growers.get(state, 0) + cnt
+            state_crops.setdefault(state, [])
+            if crop and crop not in state_crops[state]:
+                state_crops[state].append(crop)
+
+    if not state_growers:
+        return None
+
+    lats, lons, sizes, texts, colors = [], [], [], [], []
+    max_growers = max(state_growers.values()) or 1
+    for state, cnt in state_growers.items():
+        coords = STATE_COORDS.get(state)
+        if not coords:
+            continue
+        lat, lon = coords
+        crops_str = ", ".join(state_crops.get(state, []))
+        lats.append(lat)
+        lons.append(lon)
+        sizes.append(10 + 40 * (cnt / max_growers))
+        texts.append(f"<b>{state.title()}</b><br>{cnt:,} growers<br>{crops_str}")
+        colors.append(cnt)
+
+    fig = go.Figure()
+
+    # Background all-India outline via choropleth scope
+    fig.add_trace(go.Scattergeo(
+        lat=[8, 37, 37, 8, 8],
+        lon=[68, 68, 98, 98, 68],
+        mode="lines",
+        line=dict(width=0),
+        showlegend=False,
+        hoverinfo="skip",
+    ))
+
+    # Targeted state bubbles
+    fig.add_trace(go.Scattergeo(
+        lat=lats,
+        lon=lons,
+        mode="markers+text",
+        marker=dict(
+            size=sizes,
+            color=colors,
+            colorscale=[[0, "#a8d4b4"], [0.5, "#2f7d4c"], [1, "#1a3d28"]],
+            showscale=True,
+            colorbar=dict(title="Growers", thickness=12, len=0.6),
+            line=dict(width=1, color="white"),
+            opacity=0.85,
+        ),
+        text=[s.split("<br>")[0].replace("<b>", "").replace("</b>", "") for s in texts],
+        textposition="top center",
+        textfont=dict(size=8, color="#1a2520"),
+        hovertemplate="%{customdata}<extra></extra>",
+        customdata=texts,
+        name="Targeted States",
+    ))
+
+    fig.update_geos(
+        scope="asia",
+        center=dict(lat=22.5, lon=82.5),
+        projection_scale=5.2,
+        showland=True,
+        landcolor="#f0f7f2",
+        showocean=True,
+        oceancolor="#e8f4fd",
+        showcountries=True,
+        countrycolor="#aaa",
+        showsubunits=True,
+        subunitcolor="#b0c8b8",
+        subunitwidth=1,
+        showframe=False,
+    )
+    fig.update_layout(
+        paper_bgcolor="#fffdf7",
+        geo_bgcolor="#fffdf7",
+        margin=dict(l=0, r=0, t=30, b=0),
+        title=dict(
+            text="Campaign Reach — Targeted States",
+            font=dict(size=13, color="#1a2520", family="Arial"),
+            x=0.5,
+        ),
+        showlegend=False,
+        height=420,
+        width=720,
+    )
+
+    try:
+        return pio.to_image(fig, format="png", width=720, height=420, scale=2)
+    except Exception:
+        return None
+
+
 def _generate_pdf_bytes(variants: dict, seg_map: dict, campaign_name: str) -> bytes | None:
-    """Build a PDF of all generated content with Unicode font support for Indian scripts."""
+    """Build a structured PDF: cover page → India map → per-segment content."""
     try:
         from fpdf import FPDF
     except ImportError:
@@ -957,32 +1183,44 @@ def _generate_pdf_bytes(variants: dict, seg_map: dict, campaign_name: str) -> by
     unicode_font = _find_unicode_font()
 
     def _latin(s: str | None) -> str:
-        return (s or "").encode("latin-1", errors="replace").decode("latin-1")
+        t = (s or "")
+        # Replace common Unicode punctuation that Helvetica can't render
+        t = (t.replace("—", "-").replace("–", "-")   # em/en dash
+              .replace("·", ".")                           # middle dot
+              .replace("•", "-")                           # bullet
+              .replace("‘", "'").replace("’", "'")    # smart quotes
+              .replace("“", '"').replace("”", '"'))   # smart double quotes
+        return t.encode("latin-1", errors="replace").decode("latin-1")
 
+    # ── Aggregate summary stats ────────────────────────────────────────────────
+    total_growers  = sum(seg_map.get(sid, {}).get("grower_count", 0) for sid in variants)
+    target_states  = sorted({seg_map.get(sid, {}).get("state", "") for sid in variants if seg_map.get(sid, {}).get("state")})
+    target_crops   = sorted({seg_map.get(sid, {}).get("crop", "").title() for sid in variants if seg_map.get(sid, {}).get("crop")})
+    channels_used  = sorted({variants[sid].get("channel", "") for sid in variants})
+    langs_used     = sorted({variants[sid].get("language", "") for sid in variants})
+    n_segments     = len(variants)
+    generated_at   = datetime.now().strftime("%d %b %Y, %H:%M")
+
+    # ── India map PNG ──────────────────────────────────────────────────────────
+    map_png_bytes = _build_india_map_png(seg_map, variants)
+
+    # ── PDF setup ─────────────────────────────────────────────────────────────
     pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.set_margins(left=12, top=12, right=12)
+    pdf.set_auto_page_break(auto=True, margin=18)
 
     if unicode_font:
         try:
             pdf.add_font("U", fname=unicode_font)
         except Exception:
-            unicode_font = None  # font load failed — fall back to latin
+            unicode_font = None
 
-    pdf.add_page()
-
-    # Header banner (Latin only — Helvetica is fine here)
-    pdf.set_fill_color(26, 61, 40)
-    pdf.set_text_color(255, 255, 255)
-    pdf.set_font("Helvetica", "B", 18)
-    pdf.cell(0, 14, _latin(campaign_name or "Campaign Content"), ln=True, fill=True)
-    pdf.set_font("Helvetica", "", 9)
-    pdf.cell(0, 7,
-             f"Krishi Pracharak  |  Generated {datetime.now().strftime('%Y-%m-%d %H:%M')} UTC",
-             ln=True, fill=True)
-    pdf.set_text_color(0, 0, 0)
-    pdf.ln(6)
+    def _reset_x():
+        """Always return cursor to left margin before drawing full-width content."""
+        pdf.set_x(pdf.l_margin)
 
     def _write_content(text: str | None):
+        _reset_x()
         t = text or "[Not generated]"
         if unicode_font:
             pdf.set_font("U", size=9)
@@ -991,7 +1229,213 @@ def _generate_pdf_bytes(variants: dict, seg_map: dict, campaign_name: str) -> by
             pdf.set_font("Helvetica", size=9)
             pdf.multi_cell(0, 5, _latin(t))
 
+    def _section_heading(title: str):
+        _reset_x()
+        pdf.set_fill_color(47, 125, 76)
+        pdf.set_text_color(255, 255, 255)
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.cell(0, 7, f"  {_latin(title)}", ln=True, fill=True)
+        pdf.set_text_color(30, 30, 30)
+        pdf.ln(2)
+
+    def _sub_label(title: str):
+        _reset_x()
+        pdf.set_font("Helvetica", "B", 9)
+        pdf.set_text_color(26, 61, 40)
+        pdf.cell(0, 5, _latin(title), ln=True)
+        pdf.set_text_color(30, 30, 30)
+
+    def _info_row(label: str, value: str):
+        _reset_x()
+        LABEL_W = 45
+        pdf.set_font("Helvetica", "B", 9)
+        pdf.set_text_color(80, 80, 80)
+        pdf.cell(LABEL_W, 6, _latin(label + ":"), ln=False)
+        pdf.set_font("Helvetica", "", 9)
+        pdf.set_text_color(20, 20, 20)
+        val_w = pdf.w - pdf.r_margin - pdf.l_margin - LABEL_W
+        pdf.multi_cell(max(val_w, 60), 6, _latin(value))
+
+    def _divider():
+        pdf.set_draw_color(220, 216, 208)
+        pdf.line(pdf.get_x(), pdf.get_y(), pdf.get_x() + 190, pdf.get_y())
+        pdf.ln(4)
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # PAGE 1 — COVER
+    # ══════════════════════════════════════════════════════════════════════════
+    pdf.add_page()
+
+    # Dark header banner
+    pdf.set_fill_color(15, 37, 24)
+    pdf.set_text_color(255, 255, 255)
+    pdf.rect(0, 0, 210, 52, "F")
+
+    pdf.set_xy(10, 10)
+    pdf.set_font("Helvetica", "B", 7)
+    pdf.set_text_color(100, 200, 140)
+    pdf.cell(0, 5, "KRISHI PRACHARAK  |  SYNGENTA CAMPAIGN INTELLIGENCE", ln=True)
+
+    pdf.set_xy(10, 17)
+    pdf.set_font("Helvetica", "B", 20)
+    pdf.set_text_color(255, 255, 255)
+    name_display = _latin(campaign_name or "Campaign Report")
+    pdf.multi_cell(190, 9, name_display)
+
+    pdf.set_xy(10, 44)
+    pdf.set_font("Helvetica", "", 8)
+    pdf.set_text_color(160, 210, 180)
+    pdf.cell(0, 5, f"Generated {generated_at}  |  AI-powered field campaign report", ln=True)
+
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_y(60)
+
+    # ── Summary stat boxes (4 across, derived from actual content width) ──────
+    _LM  = pdf.l_margin
+    _CW  = pdf.w - pdf.l_margin - pdf.r_margin  # usable content width
+    BOX_GAP = 3
+    BOX_W   = (_CW - BOX_GAP * 3) / 4           # 4 boxes, 3 gaps
+    BOX_H   = 24
+    box_data = [
+        (f"{total_growers:,}", "Total Growers"),
+        (str(n_segments),      "Segments"),
+        (str(len(target_states)), "States"),
+        (str(len(target_crops)),  "Crops"),
+    ]
+    _box_y = pdf.get_y()   # anchor Y — captured once, never changes inside loop
+    for i, (val, lbl) in enumerate(box_data):
+        bx = _LM + i * (BOX_W + BOX_GAP)
+        pdf.set_fill_color(240, 247, 242)
+        pdf.set_draw_color(180, 212, 192)
+        pdf.rect(bx, _box_y, BOX_W, BOX_H, "FD")
+        # Value (large, centred)
+        pdf.set_xy(bx + 1, _box_y + 4)
+        pdf.set_font("Helvetica", "B", 13)
+        pdf.set_text_color(26, 61, 40)
+        pdf.cell(BOX_W - 2, 8, _latin(val), ln=False, align="C")
+        # Label (small, centred below value)
+        pdf.set_xy(bx + 1, _box_y + 14)
+        pdf.set_font("Helvetica", "", 7)
+        pdf.set_text_color(100, 130, 110)
+        pdf.cell(BOX_W - 2, 5, _latin(lbl), ln=False, align="C")
+
+    pdf.set_xy(_LM, _box_y + BOX_H + 6)  # reset X to left margin after boxes
+    pdf.set_text_color(0, 0, 0)
+
+    # ── Campaign details table ────────────────────────────────────────────────
+    _reset_x()
+    pdf.set_font("Helvetica", "B", 10)
+    pdf.set_text_color(15, 37, 24)
+    pdf.cell(0, 7, "Campaign Overview", ln=True)
+    _divider()
+
+    _info_row("Campaign Name", campaign_name or "-")
+    _info_row("States Targeted", ", ".join(target_states) if target_states else "-")
+    _info_row("Crops", ", ".join(target_crops) if target_crops else "-")
+    _info_row("Channels", ", ".join(channels_used) if channels_used else "-")
+    _info_row("Languages", ", ".join(langs_used) if langs_used else "-")
+    _info_row("Total Segments", str(n_segments))
+    _info_row("Total Growers", f"{total_growers:,}")
+    pdf.ln(4)
+
+    # ── Table of contents ─────────────────────────────────────────────────────
+    _reset_x()
+    pdf.set_font("Helvetica", "B", 10)
+    pdf.set_text_color(15, 37, 24)
+    pdf.cell(0, 7, "Contents", ln=True)
+    _divider()
+
+    pdf.set_font("Helvetica", "", 9)
+    pdf.set_text_color(40, 40, 40)
+    _reset_x()
+    pdf.cell(0, 5, "1.  Geographic Reach Map", ln=True)
+    for i, (seg_id, content) in enumerate(variants.items(), start=2):
+        seg   = seg_map.get(seg_id, {})
+        crop  = seg.get("crop", "").title()
+        state = seg.get("state", "")
+        lang  = content.get("language", "")
+        ch    = content.get("channel", "")
+        _reset_x()
+        pdf.cell(0, 5, _latin(f"{i}.  {seg_id}  -  {crop} / {state} / {lang} / {ch}"), ln=True)
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # PAGE 2 — INDIA MAP
+    # ══════════════════════════════════════════════════════════════════════════
+    pdf.add_page()
+    _reset_x()
+    pdf.set_font("Helvetica", "B", 13)
+    pdf.set_text_color(15, 37, 24)
+    pdf.cell(0, 9, "Geographic Reach - Targeted States", ln=True)
+    _divider()
+
+    if map_png_bytes:
+        import tempfile, os
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tf:
+            tf.write(map_png_bytes)
+            tmp_map = tf.name
+        try:
+            pdf.image(tmp_map, x=10, w=185)
+            pdf.ln(4)
+        except Exception:
+            pdf.set_font("Helvetica", "I", 9)
+            pdf.cell(0, 6, "[Map image could not be embedded]", ln=True)
+        finally:
+            os.unlink(tmp_map)
+    else:
+        pdf.set_font("Helvetica", "I", 9)
+        pdf.cell(0, 6, "[Map not available - plotly/kaleido required]", ln=True)
+
+    # State summary table
+    pdf.set_font("Helvetica", "B", 9)
+    pdf.set_text_color(15, 37, 24)
+    pdf.cell(0, 6, "State-level Summary", ln=True)
+    pdf.ln(1)
+
+    # Table — compute column widths from content width so nothing overflows
+    _TW = pdf.w - pdf.l_margin - pdf.r_margin  # total table width
+    _TC = [int(_TW * r) for r in [0.29, 0.21, 0.18, 0.18, 0.14]]  # State/Crop/Ch/Lang/Growers
+
+    _reset_x()
+    pdf.set_fill_color(47, 125, 76)
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font("Helvetica", "B", 8)
+    for col_w, hdr in zip(_TC, ["State", "Crop(s)", "Channel", "Language", "Growers"]):
+        pdf.cell(col_w, 6, hdr, border=0, fill=True)
+    pdf.ln()
+
+    # Table rows
+    row_state: dict[str, dict] = {}
     for seg_id, content in variants.items():
+        seg   = seg_map.get(seg_id, {})
+        state = seg.get("state", "-")
+        if state not in row_state:
+            row_state[state] = {"crops": set(), "channels": set(), "langs": set(), "growers": 0}
+        row_state[state]["crops"].add(seg.get("crop", "").title())
+        row_state[state]["channels"].add(content.get("channel", ""))
+        row_state[state]["langs"].add(content.get("language", ""))
+        row_state[state]["growers"] += int(seg.get("grower_count") or 0)
+
+    pdf.set_text_color(30, 30, 30)
+    for ri, (state, d) in enumerate(sorted(row_state.items())):
+        _reset_x()
+        pdf.set_fill_color(248, 252, 249) if ri % 2 == 0 else pdf.set_fill_color(255, 253, 247)
+        pdf.set_font("Helvetica", "", 8)
+        row_vals = [
+            _latin(state),
+            _latin(", ".join(sorted(d["crops"]))),
+            _latin(", ".join(sorted(d["channels"]))),
+            _latin(", ".join(sorted(d["langs"]))),
+            f"{d['growers']:,}",
+        ]
+        for col_w, val in zip(_TC, row_vals):
+            pdf.cell(col_w, 5, val, border=0, fill=True)
+        pdf.ln()
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # PAGES 3+ — PER-SEGMENT CONTENT
+    # ══════════════════════════════════════════════════════════════════════════
+    for seg_id, content in variants.items():
+        pdf.add_page()
         seg     = seg_map.get(seg_id, {})
         channel = content.get("channel", "")
         lang    = content.get("language", "")
@@ -1001,48 +1445,63 @@ def _generate_pdf_bytes(variants: dict, seg_map: dict, campaign_name: str) -> by
         product = seg.get("product", "")
         growers = seg.get("grower_count", 0)
 
-        # Segment banner
-        pdf.set_fill_color(47, 125, 76)
+        # ── Segment header bar ────────────────────────────────────────────────
+        _reset_x()
+        pdf.set_fill_color(26, 61, 40)
         pdf.set_text_color(255, 255, 255)
-        pdf.set_font("Helvetica", "B", 10)
-        pdf.cell(0, 7,
-                 f"  {seg_id}  |  {_latin(crop)} / {_latin(state)}  |  {persona}  |  {lang}  |  {growers:,} growers",
-                 ln=True, fill=True)
-        pdf.set_text_color(50, 50, 50)
-        pdf.set_font("Helvetica", "I", 8)
-        pdf.cell(0, 5, f"  Product: {_latin(product)}  |  Channel: {channel}", ln=True)
-        pdf.ln(2)
+        pdf.set_font("Helvetica", "B", 11)
+        pdf.cell(0, 8, f"  {_latin(seg_id)}", ln=True, fill=True)
 
-        def _block(title: str, body: str | None):
-            pdf.set_font("Helvetica", "B", 9)
-            pdf.set_text_color(26, 61, 40)
-            pdf.cell(0, 5, title, ln=True)
-            pdf.set_text_color(30, 30, 30)
-            _write_content(body)
-            pdf.ln(2)
+        # Metadata row below header
+        pdf.set_fill_color(240, 247, 242)
+        pdf.set_text_color(40, 80, 55)
+        pdf.set_font("Helvetica", "", 8)
+        meta_parts = [
+            f"Crop: {_latin(crop)}",
+            f"State: {_latin(state)}",
+            f"Language: {_latin(lang)}",
+            f"Channel: {_latin(channel)}",
+            f"Persona: {_latin(persona)}",
+            f"Growers: {growers:,}",
+        ]
+        pdf.cell(0, 6, "  " + "   |   ".join(meta_parts), ln=True, fill=True)
+        pdf.set_text_color(30, 30, 30)
+        pdf.ln(3)
 
+        # ── Product info ──────────────────────────────────────────────────────
+        _info_row("Product", product)
+        _divider()
+
+        # ── Content blocks ────────────────────────────────────────────────────
         if channel == "whatsapp":
-            _block("WhatsApp Message:", content.get("whatsapp"))
-            _block("SMS:", content.get("sms"))
-            _block("IVR Script:", content.get("ivr_script"))
-        else:
-            _block("Field Visit Script:", content.get("ivr_script"))
+            _section_heading("WhatsApp Message")
+            _write_content(content.get("whatsapp"))
+            pdf.ln(3)
 
-        # Embed poster image if saved to disk
+            _section_heading("SMS Message")
+            _write_content(content.get("sms"))
+            pdf.ln(3)
+
+            _section_heading("IVR / Voice Call Script")
+            _write_content(content.get("ivr_script"))
+        else:
+            _section_heading("Field Visit Script")
+            _write_content(content.get("ivr_script"))
+
+        pdf.ln(4)
+
+        # ── Poster image ──────────────────────────────────────────────────────
         poster_path = content.get("poster_file_path")
         if poster_path and Path(poster_path).exists():
             try:
-                pdf.set_font("Helvetica", "B", 9)
-                pdf.set_text_color(26, 61, 40)
-                pdf.cell(0, 5, "Campaign Poster:", ln=True)
-                pdf.image(poster_path, w=80)
+                _section_heading("Campaign Poster")
+                page_w = pdf.w - pdf.l_margin - pdf.r_margin
+                pdf.image(poster_path, x=pdf.l_margin, w=min(page_w, 100))
                 pdf.ln(3)
             except Exception:
                 pass
 
-        pdf.set_draw_color(200, 200, 200)
-        pdf.line(pdf.get_x(), pdf.get_y(), pdf.get_x() + 190, pdf.get_y())
-        pdf.ln(4)
+        _divider()
 
     return bytes(pdf.output())
 
@@ -1073,55 +1532,67 @@ def _render_streaming_segment(content: dict, seg: dict, seg_id: str) -> None:
 
 def _run_streaming_generation(plan: dict, key_prefix: str) -> None:
     """
-    Run content generation one segment at a time with live progress UI.
-    Shows each segment's content as it's generated, saves to session state, then reruns.
+    Run content generation in parallel batches with live progress UI.
+    3 segments run simultaneously; UI updates after each batch completes.
     """
+    BATCH_SIZE = 3
+
     promoter_b64 = st.session_state.get("promoter_image_b64")
     eligible = [s for s in plan.get("segments", []) if s.get("inventory_ok", True)]
     n = max(len(eligible), 1)
+    n_batches = (n + BATCH_SIZE - 1) // BATCH_SIZE
 
-    hdr_slot    = st.empty()
+    hdr_slot = st.empty()
     bar_col, eta_col = st.columns([5, 1])
-    progress    = bar_col.progress(0.0)
-    eta_slot    = eta_col.empty()
-    out_area    = st.container()
+    progress = bar_col.progress(0.0)
+    eta_slot = eta_col.empty()
 
+    hdr_slot.markdown(
+        f'<div style="font-size:0.88rem;color:#2f7d4c;font-weight:600;">'
+        f'⚡ Generating {n} segments in parallel batches of {BATCH_SIZE}…</div>',
+        unsafe_allow_html=True,
+    )
+
+    out_area = st.container()
     all_variants: dict = {}
+    done = 0
     t0 = _time.monotonic()
 
-    for i, (seg_id, seg, content) in enumerate(
-        run_content_generation_streaming(plan, promoter_image_b64=promoter_b64)
+    for batch_results in run_content_generation_parallel(
+        plan, promoter_image_b64=promoter_b64, batch_size=BATCH_SIZE
     ):
-        done    = i + 1
-        elapsed = _time.monotonic() - t0
-        avg     = elapsed / done
-        rem     = avg * (n - done)
+        for seg_id, seg, content in batch_results:
+            done += 1
+            all_variants[seg_id] = content
 
-        all_variants[seg_id] = content
+            crop    = seg.get("crop", "").title()
+            state   = seg.get("state", "")
+            lang    = content.get("language", "")
+            ch      = content.get("channel", "whatsapp")
+            ch_icon = "📱" if ch == "whatsapp" else "🤝"
+
+            with out_area:
+                with st.expander(
+                    f"{ch_icon} {seg_id} · {crop} / {state} · {lang}",
+                    expanded=False,
+                ):
+                    _render_streaming_segment(content, seg, f"{key_prefix}_{seg_id}")
+
         progress.progress(done / n)
-
-        crop = seg.get("crop", "").title()
-        state = seg.get("state", "")
-        lang  = content.get("language", "")
-        ch    = content.get("channel", "whatsapp")
-        ch_icon = "📱" if ch == "whatsapp" else "🤝"
-
-        hdr_slot.markdown(
-            f'<div style="font-size:0.88rem;color:#2f7d4c;font-weight:600;">'
-            f'{ch_icon} Segment {done}/{n} — {crop} / {state} · {lang}</div>',
-            unsafe_allow_html=True,
-        )
-        if n - done > 0:
-            eta_slot.caption(f"~{rem:.0f}s")
+        elapsed = _time.monotonic() - t0
+        batches_done = (done + BATCH_SIZE - 1) // BATCH_SIZE
+        batches_rem  = n_batches - batches_done
+        if batches_rem > 0 and batches_done > 0:
+            avg_batch = elapsed / batches_done
+            eta_slot.caption(f"~{avg_batch * batches_rem:.0f}s")
         else:
             eta_slot.empty()
 
-        with out_area:
-            with st.expander(
-                f"{seg_id} · {crop} / {state} · {lang}",
-                expanded=(done == 1),
-            ):
-                _render_streaming_segment(content, seg, f"{key_prefix}_{seg_id}")
+        hdr_slot.markdown(
+            f'<div style="font-size:0.88rem;color:#2f7d4c;font-weight:600;">'
+            f'⚡ {done}/{n} segments done ({elapsed:.0f}s elapsed)</div>',
+            unsafe_allow_html=True,
+        )
 
     result = {
         "generated_at": datetime.utcnow().isoformat(),
@@ -1135,7 +1606,7 @@ def _run_streaming_generation(plan: dict, key_prefix: str) -> None:
     hdr_slot.success(f"✓ {len(all_variants)} segments generated in {total_s:.1f}s")
     progress.progress(1.0)
     eta_slot.empty()
-    _time.sleep(1.2)
+    _time.sleep(1.0)
     st.rerun()
 
 
@@ -1513,17 +1984,23 @@ def _render_content_variants():
               help="Date this content batch was generated")
     with m5:
         camp_name = (plan or {}).get("campaign_name", "campaign")
-        pdf_bytes = _generate_pdf_bytes(all_v, seg_map, camp_name)
+        _pdf_key = f"pdf_bytes_{camp_name}"
+        # Only generate PDF when explicitly requested — not on every rerun
+        if st.button("⬇ Build & Download PDF", use_container_width=True, key="pdf_build_btn"):
+            with st.spinner("Building PDF…"):
+                st.session_state[_pdf_key] = _generate_pdf_bytes(all_v, seg_map, camp_name)
+        pdf_bytes = st.session_state.get(_pdf_key)
         if pdf_bytes:
             st.download_button(
-                "⬇ Download All as PDF",
+                "⬇ Download PDF",
                 data=pdf_bytes,
                 file_name=f"{camp_name.replace(' ', '_')}_content.pdf",
                 mime="application/pdf",
                 use_container_width=True,
+                key="pdf_dl_btn",
             )
-        else:
-            st.caption("_(install fpdf2 for PDF export)_")
+        elif not st.session_state.get(_pdf_key + "_tried"):
+            st.caption("_(click to generate PDF)_")
     st.divider()
 
     # ── Per-segment content cards ───────────────────────────────────────────────
@@ -2164,7 +2641,7 @@ with st.sidebar:
                         st.session_state.confirm_delete_id = None
                         st.rerun()
             else:
-                col_name, col_del = st.columns([6, 1])
+                col_name, col_del = st.columns([7, 1])
                 with col_name:
                     if is_active:
                         _active_item(label, meta)
@@ -2188,10 +2665,17 @@ with st.sidebar:
     # ── Dataset campaigns ──────────────────────────────────────────────────────
     if digital:
         _sidebar_divider()
+        st.markdown(
+            '<p style="font-size:0.62rem;font-weight:500;letter-spacing:0.07em;'
+            'color:rgba(180,220,190,0.32);text-transform:uppercase;margin:4px 0 2px 4px;">'
+            'Dataset Campaigns</p>',
+            unsafe_allow_html=True,
+        )
         for c in digital:
             is_active = st.session_state.cb_view == c["id"]
-            meta = f"{c['crop'].title()} · {_fmt(c['impressions'])} impr"
-            if _nav(c["id"], f"sb_{c['id']}", is_active, meta):
+            label = f"{c['crop'].title()} · {c['product']}"
+            meta  = f"{_fmt(c['impressions'])} impr · {c['start'][:7]}"
+            if _nav(label, f"sb_{c['id']}", is_active, meta):
                 st.session_state.cb_view = c["id"]
                 st.session_state.targeting_plan = None
                 st.session_state.content_variants = None
@@ -2204,7 +2688,17 @@ with st.sidebar:
 # ═══════════════════════════════════════════════════════════════════════════════
 # MAIN AREA
 # ═══════════════════════════════════════════════════════════════════════════════
+
+# Keep URL in sync with the current view so the browser back-button and
+# direct links work.  welcome → no ?c= param; campaign → ?c=<stem>
 view = st.session_state.cb_view
+_desired_qp = "" if view == "welcome" else view
+_current_qp = st.query_params.get("c", "")
+if _desired_qp != _current_qp:
+    if _desired_qp:
+        st.query_params["c"] = _desired_qp
+    else:
+        st.query_params.clear()
 
 
 # ── WELCOME ───────────────────────────────────────────────────────────────────
@@ -2798,7 +3292,10 @@ elif any(c["_id"] == view for c in saved_camps):
                 segs_new = plan.get("segments", [])
                 if segs_new:
                     dw = plan.get("date_window") or {}
-                    _render_segment_overview(segs_new, plan.get("reference_date", start_date), dw)
+                    _render_segment_overview(
+                        segs_new, plan.get("reference_date", start_date), dw,
+                        campaign_path=st.session_state.get("current_campaign_path"),
+                    )
                     section_label(f"Targeting Segments ({len(segs_new)})")
                     _render_segment_cards(segs_new)
         else:
@@ -2840,8 +3337,12 @@ elif any(c["_id"] == view for c in saved_camps):
                     ),
                     unsafe_allow_html=True,
                 )
-                _render_segment_overview(segs, c.get("reference_date", date.today()),
-                                         date_win or None)
+                _render_segment_overview(
+                    segs, c.get("reference_date", date.today()),
+                    date_win or None,
+                    campaign_path=c.get("_path"),
+                    overview_cache=c.get("overview_cache", {}),
+                )
                 section_label(f"Targeting Segments ({len(segs)})")
                 _render_segment_cards(segs)
             st.download_button(
