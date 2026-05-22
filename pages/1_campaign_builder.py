@@ -36,7 +36,7 @@ st.markdown("""
 <style>
 /* ── All sidebar nav buttons — clean, minimal, left-aligned ─────────────────── */
 section[data-testid="stSidebar"] .stButton > button {
-    background: transparent !important;
+    background: white !important;
     border: none !important;
     border-radius: 6px !important;
     text-align: left !important;
@@ -51,7 +51,7 @@ section[data-testid="stSidebar"] .stButton > button {
     line-height: 1.35 !important;
 }
 section[data-testid="stSidebar"] .stButton > button:hover {
-    background: rgba(255,255,255,0.06) !important;
+    background: rgba(255,255,255,0.6) !important;
     color: rgba(220,240,225,0.92) !important;
     border: none !important;
     box-shadow: none !important;
@@ -60,7 +60,7 @@ section[data-testid="stSidebar"] .stButton > button:hover {
 /* Primary "New Campaign" button */
 section[data-testid="stSidebar"] .stButton > button[data-testid="baseButton-primary"],
 section[data-testid="stSidebar"] .stButton > button[kind="primary"] {
-    background: #2f7d4c !important;
+    background: orange !important;
     border: none !important;
     color: #fff !important;
     font-weight: 600 !important;
@@ -79,11 +79,11 @@ section[data-testid="stSidebar"] .stButton > button[kind="primary"]:hover {
 /* ── Delete icon buttons (✕) — faint, icon-only style ───────────────────────── */
 /* Target buttons whose text is exactly ✕ */
 section[data-testid="stSidebar"] .stButton > button:has(p:only-child) {
-    padding: 0.2rem 0.4rem !important;
+    
 }
 section[data-testid="stSidebar"] [data-testid^="del_"] > button,
 section[data-testid="stSidebar"] button[data-testid^="del_"] {
-    background: transparent !important;
+    background: white !important;
     border: none !important;
     color: rgba(200,100,100,0.4) !important;
     font-size: 0.7rem !important;
@@ -2810,7 +2810,7 @@ if view == "welcome":
             img = crop_img(dc["crop"])
             st.markdown(
                 f'<div class="kp-ccard">'
-                f'<img class="kp-ccard-img" src="{img}" alt="{dc["crop"]}" />'
+                f'<img class="kp-ccard-img" src="{img}" alt="{dc["crop"]}" style="object-fit: cover;" />'
                 f'<div class="kp-ccard-body">'
                 f'<div class="kp-ccard-top">'
                 f'<span class="kp-ccard-type">{dc["crop"].title()}</span>'
@@ -2859,7 +2859,7 @@ if view == "welcome":
             img        = crop_img(sc_crop) if sc_crop else IMG_PEOPLE
             st.markdown(
                 f'<div class="kp-ccard">'
-                f'<img class="kp-ccard-img" src="{img}" alt="campaign" />'
+                f'<img class="kp-ccard-img" src="{img}" alt="campaign" style="object-fit: cover;" />'
                 f'<div class="kp-ccard-body">'
                 f'<div class="kp-ccard-top">'
                 f'<span class="kp-ccard-type">{sc_obj}</span>'
