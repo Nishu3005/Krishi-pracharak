@@ -1,104 +1,78 @@
-# 🌾 Krishi Pracharak
+# KrishiPulse AI
 
-> AI-Native Agricultural Marketing Platform · Syngenta × IITM Hackathon 2026
+KrishiPulse AI is a full-stack agricultural marketing intelligence MVP built for a Syngenta-style hackathon. It helps teams turn farmer, product, region, influencer, and campaign-history data into explainable farmer segments and compliant campaign packs.
 
-Krishi Pracharak ("Farm Advocate") turns raw field data into hyper-local campaign decisions, multilingual content, and ranked field-rep actions — all from a single operational flow.
+## Problem Statement
 
----
+Agricultural marketing teams often have fragmented survey files, product notes, influencer lists, and campaign history. This makes it hard to choose the right farmer persona, channel, message, and field activation strategy quickly enough for seasonal windows.
 
-## Screenshots
+## Solution Overview
 
-### Configure Campaign Targeting
+KrishiPulse AI simulates an AI campaign workflow without external paid APIs. Rule-based agents ingest database context, create farmer persona segments, generate channel-specific campaign content, check compliance, and predict campaign performance.
 
-Set objectives, crops, states, date range, and channel mix — the AI targeting agent scores all 6,000 growers and returns prioritised segments in seconds.
+## Website Workflow
 
-![Configure Campaign Targeting](assets/create-new-camp.png)
+1. Upload or manage farmer survey, product, influencer, and campaign data.
+2. Open **Create Campaign**.
+3. Select a mandatory product and optional region, channel, influencer, and additional info.
+4. Click **Create Segments** to generate farmer personas from product, region, crop, farmer, ecosystem, outbreak, and campaign-history data.
+5. Click **Generate** on a segment to create WhatsApp, SMS, voice, video, image, influencer, field rep, and retailer content.
+6. Use the right-pane AI chat for contextual strategy questions.
+7. Export a campaign pack with generated content, compliance notes, metrics, and agent trace.
 
-### Campaign Overview — Timeline & Active States Map
+## Tech Stack
 
-Gantt-style segment timeline coloured by crop type, alongside a live India bubble map sized by grower count per state.
+- Next.js App Router
+- TypeScript
+- Tailwind CSS
+- shadcn/ui-style local components
+- SQLite
+- Prisma
+- Recharts
+- PapaParse
+- Zod
 
-![Campaign Overview](assets/overvirw.png)
+## Database Schema Summary
 
-### AI Agronomic Advisory & Pest Outbreak Alerts
+The Prisma schema models products, crops, product-crop fit, regions, languages, farmers, farmer assets, farming practices, channel preferences, ecosystem conditions, outbreaks, retailers, influencers, campaigns, messages, targets, responses, CSV uploads, ingestion jobs, schema mappings, staging records, and data-health issues.
 
-Real-time weather-driven disease and pest risk analysis with AI-generated field advisory for each segment, including rep action scripts.
+Campaign generation stores campaign briefs, channel scripts, influencer and field scripts, retailer nudges, visual prompts, compliance status, compliance notes, and expected metrics in `campaign_messages`.
 
-![Overview Pest Alerts](assets/overview-pest.png)
-
-### Multilingual Content Generation
-
-AI-generated WhatsApp messages, SMS, IVR scripts, and campaign posters in regional languages (Hindi, Bengali, Gujarati, Marathi, Punjabi, Kannada) — one per segment.
-
-![Content Generation](assets/contents-generated.png)
-
----
-
-## What it does
-
-| Problem Statement Requirement | How this platform addresses it |
-|---|---|
-| Context-aware content in multiple languages | Content agent generates WhatsApp, SMS, IVR, and poster variants in Hindi, Punjabi, Marathi, Gujarati, Kannada, and Bengali — one call per segment, language-aware prompts |
-| Optimise campaign targeting and timing | Targeting agent scores every grower, applies crop-stage timing logic, gates out OOS territories, and routes to the right channel before sending anything |
-| Predict campaign receptivity | 7-signal heuristic scoring model (0–1) combining timing urgency, engagement history, farm size, state baseline, fatigue penalty, scan signal, and gender signal |
-| Scale personalisation to thousands | Micro-segmentation clusters growers by (crop × state × channel × persona) with a 20-grower minimum; a single LLM call produces content for each cluster, not each individual |
-
----
-
-## Models used
-
-| Task | Model | Why |
-|---|---|---|
-| Targeting rationale (1 call) | `anthropic/claude-sonnet-4-6` | Needs reasoning quality; called once per run |
-| WA / SMS / IVR content | `anthropic/claude-haiku-4-5` | High throughput, low cost; called per segment |
-| Rep briefings | `anthropic/claude-haiku-4-5` | Short output, low latency |
-| Poster images | `google/gemini-2.5-flash-image` | Only model available via Token Router for image gen; failure is non-blocking |
-
-All calls go through a single OpenAI-compatible client (`utils/ai_client.py`) pointed at the Token Router base URL.
-
----
-
-## Setup
-
-### 1. Clone and install
+## How To Run
 
 ```bash
-git clone <repo-url>
-cd syngenta
-pip install -r requirements.txt
+npm install
+npx prisma migrate dev
+npm run dev
 ```
 
-### 2. Configure environment
+Open:
+
+```text
+http://localhost:3000
+```
+
+Build check:
 
 ```bash
-cp .env.example .env
-# Edit .env — fill in TOKEN_ROUTER_KEY and TOKEN_ROUTER_BASE_URL
+npm run build
 ```
 
-See [.env.example](.env.example) for a description of every variable.
+## Demo Flow
 
-### 3. Weather integration (no setup required)
+1. Go to `/campaigns/create`.
+2. Click **Run Bihar Seed Campaign Demo**.
+3. Review the three high-priority Bihar maize farmer segments.
+4. Click **Generate** on a segment.
+5. Review the campaign brief, content tabs, compliance notes, expected metrics, generic-vs-AI comparison, and agent trace.
+6. Ask suggested chat questions such as “Why was this segment selected?” or “What is the expected inquiry rate?”
+7. Click **Export Campaign Pack**.
 
-Weather data is fetched via [Open-Meteo](https://open-meteo.com) — a free, no-API-key weather service. The `utils/weather_client.py` module has a 5-second timeout and returns `None` on any failure; the UI renders gracefully when weather is unavailable. No additional configuration is needed.
+## Future Production Roadmap
 
-### 4. Place the dataset
-
-The `Syngenta_IITM_Hackathon_2026_dataset/` folder (8 CSV files + analysis modules) must sit at the repo root. This matches the default `DATA_DIR` value. Do not rename the folder unless you also update `DATA_DIR` in `.env`.
-
-> **Data confidentiality** — the Syngenta dataset is strictly confidential and intended solely for use in the Syngenta IITM Hackathon 2026. Do not share, publish, or distribute it in any form.
-
-### 5. Run
-
-```bash
-streamlit run app.py
-```
-
-Open `http://localhost:8501` in your browser.
-
----
-
-## Requirements
-
-- Python 3.10+
-- See `requirements.txt` for package versions.
-- A valid Token Router API key with access to `anthropic/claude-sonnet-4-6`, `anthropic/claude-haiku-4-5`, and `google/gemini-2.5-flash-image`.
+- Replace rule-based AI modules with configurable LLM providers.
+- Add authentication, role-based permissions, and audit logs.
+- Add production-grade CSV review queues and human approval workflows.
+- Integrate live weather, outbreak, retailer, and sales data feeds.
+- Add multilingual campaign generation and compliance review by market.
+- Add experiment tracking for A/B campaign variants and closed-loop ROI learning.

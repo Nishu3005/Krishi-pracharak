@@ -1,0 +1,476 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Product {
+  id                 Int      @id @default(autoincrement()) @map("product_id")
+  name               String   @unique @map("product_name")
+  category           String   @map("product_category")
+  productType        String?  @map("product_type")
+  sustainableFlag    Boolean  @default(false) @map("sustainable_flag")
+  organicFlag        Boolean  @default(false) @map("organic_flag")
+  pricePerUnit       Decimal? @map("price_per_unit")
+  unitType           String?  @map("unit_type")
+  activeIngredient   String?  @map("active_ingredient")
+  targetPestType     String?  @map("target_pest_type")
+  cropStageRelevance String?  @map("crop_stage_relevance")
+  positioning        String?  @map("description")
+  status             String   @default("active")
+
+  campaigns Campaign[]
+  cropFits  ProductCropFit[]
+
+  @@map("products")
+}
+
+model Crop {
+  id                  Int     @id @default(autoincrement()) @map("crop_id")
+  name                String  @unique @map("crop_name")
+  category            String? @map("crop_category")
+  season              String?
+  averageDurationDays Int?    @map("average_duration_days")
+  typicalGrowthStages String? @map("typical_growth_stages")
+
+  campaigns        Campaign[]
+  farmers          Farmer[]
+  farmingPractices FarmingPractice[]
+  outbreaks        Outbreak[]
+  productFits      ProductCropFit[]
+
+  @@map("crops")
+}
+
+model Region {
+  id               Int      @id @default(autoincrement()) @map("region_id")
+  country          String   @default("India")
+  state            String
+  district         String?
+  blockTaluk       String?  @map("block_taluk")
+  village          String?
+  latitude         Decimal?
+  longitude        Decimal?
+  agroClimaticZone String?  @map("agro_climatic_zone")
+
+  campaigns           Campaign[]
+  ecosystemConditions EcosystemCondition[]
+  farmers             Farmer[]
+  influencers         Influencer[]
+  outbreaks           Outbreak[]
+  retailers           Retailer[]
+
+  @@unique([country, state, district, blockTaluk, village])
+  @@map("regions")
+}
+
+model Language {
+  id         Int     @id @default(autoincrement()) @map("language_id")
+  name       String  @unique @map("language_name")
+  scriptType String? @map("script_type")
+  rtlFlag    Boolean @default(false) @map("rtl_flag")
+
+  campaigns   Campaign[]
+  farmers     Farmer[]
+  influencers Influencer[]
+
+  @@map("languages")
+}
+
+model UploadRecord {
+  id           Int      @id @default(autoincrement()) @map("upload_id")
+  fileName     String   @map("file_name")
+  purpose      String   @map("upload_purpose")
+  rows         Int      @default(0)
+  status       String   @default("processed")
+  aiConfidence Decimal? @map("ai_confidence")
+  importedRows Int      @default(0) @map("imported_rows")
+  uploadedAt   DateTime @default(now()) @map("uploaded_at")
+
+  @@map("upload_records")
+}
+
+model UploadedFile {
+  id               Int      @id @default(autoincrement()) @map("uploaded_file_id")
+  originalFileName String   @map("original_file_name")
+  uploadPurpose    String   @map("upload_purpose")
+  requestedCsvType String   @default("auto-detect") @map("requested_csv_type")
+  detectedCsvType  String   @default("unknown") @map("detected_csv_type")
+  rowCount         Int      @default(0) @map("row_count")
+  status           String   @default("uploaded")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  ingestionJobs DataIngestionJob[]
+
+  @@map("uploaded_files")
+}
+
+model DataIngestionJob {
+  id               Int       @id @default(autoincrement()) @map("ingestion_job_id")
+  uploadedFileId   Int       @map("uploaded_file_id")
+  requestedCsvType String    @map("requested_csv_type")
+  detectedCsvType  String    @map("detected_csv_type")
+  status           String    @default("mapped")
+  totalRows        Int       @default(0) @map("total_rows")
+  validRows        Int       @default(0) @map("valid_rows")
+  invalidRows      Int       @default(0) @map("invalid_rows")
+  aiConfidence     Decimal?  @map("ai_confidence")
+  errorReportJson  String?   @map("error_report_json")
+  approvedAt       DateTime? @map("approved_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  uploadedFile   UploadedFile    @relation(fields: [uploadedFileId], references: [id])
+  schemaMappings SchemaMapping[]
+  stagingRecords StagingRecord[]
+
+  @@map("data_ingestion_jobs")
+}
+
+model SchemaMapping {
+  id            Int      @id @default(autoincrement()) @map("schema_mapping_id")
+  jobId         Int      @map("ingestion_job_id")
+  sourceColumn  String   @map("source_column")
+  targetTable   String   @map("target_table")
+  targetField   String   @map("target_field")
+  confidence    Decimal? @map("confidence")
+  requiredFlag  Boolean  @default(false) @map("required_flag")
+  transformNote String?  @map("transform_note")
+
+  job DataIngestionJob @relation(fields: [jobId], references: [id])
+
+  @@map("schema_mappings")
+}
+
+model StagingRecord {
+  id               Int      @id @default(autoincrement()) @map("staging_record_id")
+  jobId            Int      @map("ingestion_job_id")
+  rowNumber        Int      @map("row_number")
+  rawJson          String   @map("raw_json")
+  mappedJson       String   @map("mapped_json")
+  validationStatus String   @default("valid") @map("validation_status")
+  errorsJson       String?  @map("errors_json")
+  aiConfidence     Decimal? @map("ai_confidence")
+  importedFlag     Boolean  @default(false) @map("imported_flag")
+
+  job DataIngestionJob @relation(fields: [jobId], references: [id])
+
+  @@map("staging_records")
+}
+
+model DataHealthIssue {
+  id             Int      @id @default(autoincrement()) @map("issue_id")
+  category       String
+  label          String
+  issueCount     Int      @default(0) @map("issue_count")
+  severity       String   @default("medium")
+  recommendedFix String   @map("recommended_fix")
+  status         String   @default("open")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@map("data_health_issues")
+}
+
+model Farmer {
+  id                  Int      @id @default(autoincrement()) @map("farmer_id")
+  name                String?  @map("farmer_name")
+  regionId            Int      @map("region_id")
+  primaryCropId       Int?     @map("primary_crop_id")
+  landSizeAcres       Decimal? @map("land_size_acres")
+  annualIncomeBand    String?  @map("annual_income_band")
+  literacyLevel       String?  @map("literacy_level")
+  smartphoneUser      Boolean  @default(false) @map("smartphone_user")
+  featurePhoneUser    Boolean  @default(false) @map("feature_phone_user")
+  preferredLanguageId Int?     @map("preferred_language_id")
+  gender              String?
+  ageBand             String?  @map("age_band")
+  farmerSegment       String?  @map("farmer_segment")
+  trustChannel        String?  @map("trust_channel")
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  region             Region              @relation(fields: [regionId], references: [id])
+  primaryCrop        Crop?               @relation(fields: [primaryCropId], references: [id])
+  preferredLanguage  Language?           @relation(fields: [preferredLanguageId], references: [id])
+  assets             FarmerAsset[]
+  campaignTargets    CampaignTarget[]
+  channelPreferences ChannelPreference[]
+  farmingPractices   FarmingPractice[]
+
+  @@map("farmers")
+}
+
+model EcosystemCondition {
+  id              Int      @id @default(autoincrement()) @map("ecosystem_id")
+  regionId        Int      @map("region_id")
+  observationDate DateTime @map("observation_date")
+  temperatureAvg  Decimal? @map("temperature_avg")
+  rainfallMm      Decimal? @map("rainfall_mm")
+  humidityPercent Decimal? @map("humidity_percent")
+  soilType        String?  @map("soil_type")
+  soilPh          Decimal? @map("soil_ph")
+  soilMoisture    Decimal? @map("soil_moisture")
+  irrigationType  String?  @map("irrigation_type")
+  weatherSummary  String?  @map("weather_summary")
+  riskLevel       String?  @map("risk_level")
+
+  region Region @relation(fields: [regionId], references: [id])
+
+  @@map("ecosystem_conditions")
+}
+
+model Outbreak {
+  id                       Int      @id @default(autoincrement()) @map("outbreak_id")
+  regionId                 Int      @map("region_id")
+  cropId                   Int      @map("crop_id")
+  outbreakType             String   @map("outbreak_type")
+  outbreakName             String   @map("outbreak_name")
+  severity                 String?
+  detectedDate             DateTime @map("detected_date")
+  source                   String?
+  symptoms                 String?
+  recommendationWindowDays Int?     @map("recommendation_window_days")
+  activeFlag               Boolean  @default(true) @map("active_flag")
+
+  crop      Crop       @relation(fields: [cropId], references: [id])
+  region    Region     @relation(fields: [regionId], references: [id])
+  campaigns Campaign[]
+
+  @@map("outbreaks")
+}
+
+model FarmingPractice {
+  id                   Int     @id @default(autoincrement()) @map("practice_id")
+  farmerId             Int     @map("farmer_id")
+  cropId               Int     @map("crop_id")
+  farmingType          String? @map("farming_type")
+  sowingPeriod         String? @map("sowing_period")
+  irrigationMethod     String? @map("irrigation_method")
+  mechanizationLevel   String? @map("mechanization_level")
+  fertilizerPractice   String? @map("fertilizer_practice")
+  pesticidePractice    String? @map("pesticide_practice")
+  laborDependency      String? @map("labor_dependency")
+  cultivationFrequency String? @map("cultivation_frequency")
+
+  crop   Crop   @relation(fields: [cropId], references: [id])
+  farmer Farmer @relation(fields: [farmerId], references: [id])
+
+  @@map("farming_practices")
+}
+
+model FarmerAsset {
+  id            Int     @id @default(autoincrement()) @map("asset_id")
+  farmerId      Int     @map("farmer_id")
+  assetType     String  @map("asset_type")
+  assetName     String? @map("asset_name")
+  ownershipType String? @map("ownership_type")
+  quantity      Int     @default(1)
+  usableFlag    Boolean @default(true) @map("usable_flag")
+
+  farmer Farmer @relation(fields: [farmerId], references: [id])
+
+  @@map("farmer_assets")
+}
+
+model ProductCropFit {
+  id               Int      @id @default(autoincrement()) @map("fit_id")
+  productId        Int      @map("product_id")
+  cropId           Int      @map("crop_id")
+  outbreakType     String?  @map("outbreak_type")
+  outbreakName     String?  @map("outbreak_name")
+  recommendedStage String?  @map("recommended_stage")
+  relevanceScore   Decimal? @map("relevance_score")
+  approvedFlag     Boolean  @default(true) @map("approved_flag")
+
+  crop    Crop    @relation(fields: [cropId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([productId, cropId, outbreakType, outbreakName, recommendedStage])
+  @@map("product_crop_fit")
+}
+
+model ChannelPreference {
+  id                     Int       @id @default(autoincrement()) @map("preference_id")
+  farmerId               Int       @map("farmer_id")
+  whatsappOptIn          Boolean   @default(false) @map("whatsapp_opt_in")
+  smsOptIn               Boolean   @default(false) @map("sms_opt_in")
+  voiceCallOptIn         Boolean   @default(false) @map("voice_call_opt_in")
+  retailerInfluenceScore Decimal?  @map("retailer_influence_score")
+  fieldRepInfluenceScore Decimal?  @map("field_rep_influence_score")
+  preferredContactTime   String?   @map("preferred_contact_time")
+  engagementScore        Decimal?  @map("engagement_score")
+  lastContactedAt        DateTime? @map("last_contacted_at")
+
+  farmer Farmer @relation(fields: [farmerId], references: [id])
+
+  @@map("channel_preferences")
+}
+
+model Campaign {
+  id           Int       @id @default(autoincrement()) @map("campaign_id")
+  name         String    @map("campaign_name")
+  productId    Int       @map("product_id")
+  cropId       Int?      @map("crop_id")
+  regionId     Int?      @map("region_id")
+  outbreakId   Int?      @map("outbreak_id")
+  languageId   Int?      @map("language_id")
+  channel      String?
+  messageType  String?   @map("message_type")
+  campaignGoal String?   @map("campaign_goal")
+  launchDate   DateTime? @map("launch_date")
+  endDate      DateTime? @map("end_date")
+  createdBy    String?   @map("created_by")
+  status       String    @default("draft")
+
+  crop                Crop?                @relation(fields: [cropId], references: [id])
+  language            Language?            @relation(fields: [languageId], references: [id])
+  outbreak            Outbreak?            @relation(fields: [outbreakId], references: [id])
+  product             Product              @relation(fields: [productId], references: [id])
+  region              Region?              @relation(fields: [regionId], references: [id])
+  influencerCampaigns InfluencerCampaign[]
+  messages            CampaignMessage[]
+  targets             CampaignTarget[]
+
+  @@map("campaigns")
+}
+
+model CampaignMessage {
+  id                 Int     @id @default(autoincrement()) @map("message_id")
+  campaignId         Int     @map("campaign_id")
+  messageVariant     String? @map("message_variant")
+  campaignBrief      String? @map("campaign_brief")
+  whatsappText       String? @map("whatsapp_text")
+  smsText            String? @map("sms_text")
+  voiceScript        String? @map("voice_script")
+  videoScript        String? @map("video_script")
+  influencerScript   String? @map("influencer_script")
+  fieldRepScript     String? @map("field_rep_script")
+  retailerScript     String? @map("retailer_script")
+  visualPrompt       String? @map("visual_prompt")
+  complianceStatus   String? @map("compliance_status")
+  complianceNotes    String? @map("compliance_notes")
+  expectedMetrics    String? @map("expected_metrics_json")
+  complianceApproved Boolean @default(false) @map("compliance_approved")
+
+  campaign Campaign @relation(fields: [campaignId], references: [id])
+
+  @@map("campaign_messages")
+}
+
+model CampaignTarget {
+  id                             Int      @id @default(autoincrement()) @map("target_id")
+  campaignId                     Int      @map("campaign_id")
+  farmerId                       Int      @map("farmer_id")
+  recommendedChannel             String?  @map("recommended_channel")
+  priorityScore                  Decimal? @map("priority_score")
+  predictedEngagementProbability Decimal? @map("predicted_engagement_probability")
+  predictedInquiryProbability    Decimal? @map("predicted_inquiry_probability")
+  recommendedSendTime            String?  @map("recommended_send_time")
+  status                         String   @default("pending")
+
+  campaign Campaign          @relation(fields: [campaignId], references: [id])
+  farmer   Farmer            @relation(fields: [farmerId], references: [id])
+  response CampaignResponse?
+
+  @@map("campaign_targets")
+}
+
+model CampaignResponse {
+  id             Int       @id @default(autoincrement()) @map("response_id")
+  targetId       Int       @unique @map("target_id")
+  deliveryStatus String?   @map("delivery_status")
+  openedFlag     Boolean   @default(false) @map("opened_flag")
+  clickedFlag    Boolean   @default(false) @map("clicked_flag")
+  repliedFlag    Boolean   @default(false) @map("replied_flag")
+  inquiryFlag    Boolean   @default(false) @map("inquiry_flag")
+  purchaseFlag   Boolean   @default(false) @map("purchase_flag")
+  responseDate   DateTime? @map("response_date")
+  notes          String?
+
+  target CampaignTarget @relation(fields: [targetId], references: [id])
+
+  @@map("campaign_responses")
+}
+
+model Retailer {
+  id                 Int      @id @default(autoincrement()) @map("retailer_id")
+  name               String   @map("retailer_name")
+  regionId           Int      @map("region_id")
+  contactPerson      String?  @map("contact_person")
+  phone              String?
+  majorCropsServed   String?  @map("major_crops_served")
+  keyProductsStocked String?  @map("key_products_stocked")
+  influenceScore     Decimal? @map("influence_score")
+
+  region Region @relation(fields: [regionId], references: [id])
+
+  @@map("retailers")
+}
+
+model Influencer {
+  id                Int      @id @default(autoincrement()) @map("influencer_id")
+  name              String   @unique @map("influencer_name")
+  influencerType    String?  @map("influencer_type")
+  regionId          Int?     @map("region_id")
+  primaryLanguageId Int?     @map("primary_language_id")
+  primaryCropFocus  String?  @map("primary_crop_focus")
+  channel           String   @default("WhatsApp") @map("platform")
+  followerCount     Int?     @map("follower_count")
+  reachScore        Int?     @map("estimated_farmer_reach")
+  trustScore        Decimal? @map("trust_score")
+  engagementRate    Decimal? @map("engagement_rate")
+  contentStrength   String?  @map("content_strength")
+  costPerCampaign   Decimal? @map("cost_per_campaign")
+  contentFormat     String?  @map("preferred_content_format")
+  contactPhone      String?  @map("contact_phone")
+  contactEmail      String?  @map("contact_email")
+  commercialTerms   String?  @map("commercial_terms")
+  complianceStatus  String   @default("pending") @map("compliance_status")
+  status            String   @default("active")
+
+  language            Language?            @relation(fields: [primaryLanguageId], references: [id])
+  region              Region?              @relation(fields: [regionId], references: [id])
+  influencerCampaigns InfluencerCampaign[]
+
+  @@map("influencers")
+}
+
+model InfluencerCampaign {
+  id                 Int       @id @default(autoincrement()) @map("influencer_campaign_id")
+  campaignId         Int       @map("campaign_id")
+  influencerId       Int       @map("influencer_id")
+  activationRole     String?   @map("activation_role")
+  contentFormat      String?   @map("content_format")
+  plannedPublishDate DateTime? @map("planned_publish_date")
+  expectedReach      Int?      @map("expected_reach")
+  budgetAllocated    Decimal?  @map("budget_allocated")
+  approvalStatus     String    @default("draft") @map("approval_status")
+  trackingCode       String?   @map("tracking_code")
+  notes              String?
+
+  campaign    Campaign                @relation(fields: [campaignId], references: [id])
+  influencer  Influencer              @relation(fields: [influencerId], references: [id])
+  performance InfluencerPerformance[]
+
+  @@map("influencer_campaigns")
+}
+
+model InfluencerPerformance {
+  id                       Int      @id @default(autoincrement()) @map("performance_id")
+  influencerCampaignId     Int      @map("influencer_campaign_id")
+  actualReach              Int?     @map("actual_reach")
+  viewsOrListens           Int?     @map("views_or_listens")
+  shares                   Int?
+  replies                  Int?
+  inquiriesGenerated       Int?     @map("inquiries_generated")
+  retailerVisitsAttributed Int?     @map("retailer_visits_attributed")
+  purchasesAttributed      Int?     @map("purchases_attributed")
+  costPerInquiry           Decimal? @map("cost_per_inquiry")
+  conversionRate           Decimal? @map("conversion_rate")
+  performanceNotes         String?  @map("performance_notes")
+
+  influencerCampaign InfluencerCampaign @relation(fields: [influencerCampaignId], references: [id])
+
+  @@map("influencer_performance")
+}

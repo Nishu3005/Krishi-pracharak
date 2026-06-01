@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply min-h-screen bg-background text-foreground antialiased;
+  background-image:
+    radial-gradient(circle at top left, rgba(193, 220, 158, 0.35), transparent 26%),
+    radial-gradient(circle at top right, rgba(226, 192, 140, 0.22), transparent 24%),
+    linear-gradient(180deg, rgba(249, 247, 241, 0.96), rgba(246, 244, 235, 1));
+}
+
+* {
+  @apply border-border;
+}
+
+.grain {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.4)),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' fill='none'%3E%3Cg opacity='.18'%3E%3Cpath d='M0 80h160M80 0v160' stroke='%239cb58a'/%3E%3C/g%3E%3C/svg%3E");
+}
