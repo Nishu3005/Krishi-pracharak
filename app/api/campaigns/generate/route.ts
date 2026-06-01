@@ -77,7 +77,7 @@ export async function POST(request: Request) {
       messageType: parsed.data.segment.name,
       campaignGoal: "inquiry",
       launchDate: new Date(),
-      createdBy: "KrishiPulse AI",
+      createdBy: "Krishi Pracharak",
       status: "draft",
       messages: {
         create: {

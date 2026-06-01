@@ -19,7 +19,7 @@ export function AppSidebar() {
           <Sprout className="h-6 w-6" />
         </div>
         <div>
-          <p className="font-serif text-2xl">KrishiPulse AI</p>
+          <p className="font-serif text-2xl">Krishi Pracharak</p>
           <p className="text-sm text-foreground/60">Agri marketing intelligence</p>
         </div>
       </div>

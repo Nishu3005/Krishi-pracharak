@@ -320,7 +320,7 @@ export async function ensureSeedData() {
       campaignGoal: "Inquiry",
       launchDate: new Date("2026-05-12"),
       endDate: new Date("2026-05-24"),
-      createdBy: "KrishiPulse AI",
+      createdBy: "Krishi Pracharak",
       status: "draft"
     }
   });

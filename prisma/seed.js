@@ -284,7 +284,7 @@ async function main() {
       campaignGoal: "Inquiry",
       launchDate: new Date("2026-05-12"),
       endDate: new Date("2026-05-24"),
-      createdBy: "KrishiPulse AI",
+      createdBy: "Krishi Pracharak",
       status: "draft"
     }
   });
@@ -436,7 +436,7 @@ async function main() {
     ]
   });
 
-  console.log("Seeded KrishiPulse AI core database.");
+  console.log("Seeded Krishi Pracharak core database.");
 }
 
 main()

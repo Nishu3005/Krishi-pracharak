@@ -766,7 +766,7 @@ export function CampaignBuilder({
                   <div className="mt-3 grid gap-3 sm:grid-cols-3">
                     {[
                       ["Generic conversion", `${genericConversion}%`],
-                      ["KrishiPulse AI predicted", `${generated.expectedPerformance.expectedConversion}%`],
+                      ["Krishi Pracharak predicted", `${generated.expectedPerformance.expectedConversion}%`],
                       ["Expected uplift", `${generated.expectedPerformance.expectedUpliftOverGeneric}%`]
                     ].map(([label, value]) => (
                       <div key={label} className="rounded-2xl border border-white/15 bg-white/8 p-3">

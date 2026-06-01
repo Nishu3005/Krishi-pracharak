@@ -94,7 +94,7 @@ export default async function DashboardPage() {
         <PageHeader
           eyebrow="Stage 1"
           title="Dashboard and Data Onboarding"
-          description="Monitor farmer intelligence, onboarding quality, campaign history, and AI-readiness for the KrishiPulse planning engine."
+          description="Monitor farmer intelligence, onboarding quality, campaign history, and AI-readiness for the Krishi Pracharak planning engine."
           badge="MVP intelligence console"
         />
         <Link

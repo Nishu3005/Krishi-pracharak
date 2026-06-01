@@ -1,6 +1,6 @@
-# KrishiPulse AI
+# Krishi Pracharak
 
-KrishiPulse AI is a full-stack agricultural marketing intelligence MVP built for a Syngenta-style hackathon. It helps teams turn farmer, product, region, influencer, and campaign-history data into explainable farmer segments and compliant campaign packs.
+Krishi Pracharak is a full-stack agricultural marketing intelligence MVP built for a Syngenta-style hackathon. It helps teams turn farmer, product, region, influencer, and campaign-history data into explainable farmer segments and compliant campaign packs.
 
 ## Problem Statement
 
@@ -8,7 +8,7 @@ Agricultural marketing teams often have fragmented survey files, product notes, 
 
 ## Solution Overview
 
-KrishiPulse AI simulates an AI campaign workflow without external paid APIs. Rule-based agents ingest database context, create farmer persona segments, generate channel-specific campaign content, check compliance, and predict campaign performance.
+Krishi Pracharak simulates an AI campaign workflow without external paid APIs. Rule-based agents ingest database context, create farmer persona segments, generate channel-specific campaign content, check compliance, and predict campaign performance.
 
 ## Website Workflow
 

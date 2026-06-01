@@ -5,7 +5,7 @@ import { AppSidebar } from "@/components/layout/app-sidebar";
 import { MobileNav } from "@/components/layout/mobile-nav";
 
 export const metadata: Metadata = {
-  title: "KrishiPulse AI",
+  title: "Krishi Pracharak",
   description: "Agricultural AI marketing intelligence MVP"
 };
 
