@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Bot, Download, MessageSquareText, PlayCircle, Send, Sparkles } from "lucide-react";
 
 import type { GeneratedCampaign, Segment } from "@/lib/types";
@@ -53,6 +53,17 @@ const generatedTabs = [
   { key: "retailerScript", label: "Retailer Script" }
 ] as const;
 
+type GeneratedContentTab = (typeof generatedTabs)[number]["key"];
+
+function contentTabForChannel(channelValue: string): GeneratedContentTab | null {
+  if (channelValue === "WhatsApp") return "whatsapp";
+  if (channelValue === "SMS") return "sms";
+  if (channelValue === "Voice") return "voiceScript";
+  if (channelValue === "Video") return "videoScript";
+  if (channelValue === "Image") return "imagePrompt";
+  return null;
+}
+
 const suggestedQuestions = [
   "Why was this segment selected?",
   "Which channel is best for this segment?",
@@ -103,8 +114,9 @@ export function CampaignBuilder({
   const [segments, setSegments] = useState<Segment[]>([]);
   const [selectedSegment, setSelectedSegment] = useState<string>("");
   const [generated, setGenerated] = useState<GeneratedCampaign | null>(null);
+  const [generatedChannel, setGeneratedChannel] = useState("");
   const [activePane, setActivePane] = useState<"chat" | "content">("chat");
-  const [activeContentTab, setActiveContentTab] = useState<(typeof generatedTabs)[number]["key"]>("whatsapp");
+  const [activeContentTab, setActiveContentTab] = useState<GeneratedContentTab>("whatsapp");
   const [chatQuestion, setChatQuestion] = useState("");
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     {
@@ -134,6 +146,21 @@ export function CampaignBuilder({
     ? Math.max(1, generated.expectedPerformance.expectedConversion - generated.expectedPerformance.expectedUpliftOverGeneric)
     : null;
 
+  const effectiveGeneratedChannel = generatedChannel || channel;
+
+  const visibleGeneratedTabs = useMemo(() => {
+    const selectedContentTab = contentTabForChannel(effectiveGeneratedChannel);
+    return selectedContentTab ? generatedTabs.filter((tab) => tab.key === selectedContentTab) : generatedTabs;
+  }, [effectiveGeneratedChannel]);
+
+  useEffect(() => {
+    if (!generated || visibleGeneratedTabs.some((tab) => tab.key === activeContentTab)) {
+      return;
+    }
+
+    setActiveContentTab(visibleGeneratedTabs[0]?.key ?? "whatsapp");
+  }, [activeContentTab, generated, visibleGeneratedTabs]);
+
   async function requestSegments(request: SegmentRequest, limit?: number) {
     const response = await fetch("/api/campaigns/segments", {
       method: "POST",
@@ -155,6 +182,7 @@ export function CampaignBuilder({
     setLoading("segments");
     setError("");
     setGenerated(null);
+    setGeneratedChannel("");
     try {
       const nextSegments = await requestSegments({
         productId,
@@ -191,6 +219,7 @@ export function CampaignBuilder({
     setLoading("segments");
     setError("");
     setGenerated(null);
+    setGeneratedChannel("");
     setProductId(demoRequest.productId);
     setRegion(demoRequest.region);
     setChannel(demoRequest.channel);
@@ -241,9 +270,11 @@ export function CampaignBuilder({
       }
 
       const payload = (await response.json()) as GenerationResponse;
+      const selectedContentTab = contentTabForChannel(channel);
       setGenerated(payload.generated);
+      setGeneratedChannel(channel);
       setActivePane("content");
-      setActiveContentTab(channel === "SMS" ? "sms" : channel === "Voice" ? "voiceScript" : channel === "Video" ? "videoScript" : channel === "Image" ? "imagePrompt" : "whatsapp");
+      setActiveContentTab(selectedContentTab ?? "whatsapp");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to generate campaign content.");
     } finally {
@@ -339,14 +370,19 @@ export function CampaignBuilder({
       return;
     }
 
+    const selectedGeneratedContentTab = contentTabForChannel(effectiveGeneratedChannel);
+    const generatedContent = selectedGeneratedContentTab
+      ? { [selectedGeneratedContentTab]: generated.content[selectedGeneratedContentTab] }
+      : generated.content;
+
     const pack = {
       campaignBrief: generated.campaignBrief,
       selectedProduct: activeProduct,
       selectedRegion: region || activeSegment.region,
       selectedSegment: activeSegment,
       selectedInfluencer: activeInfluencer ?? null,
-      channel: channel || "All",
-      generatedContent: generated.content,
+      channel: effectiveGeneratedChannel || "All",
+      generatedContent,
       compliance: generated.compliance,
       predictedMetrics: generated.expectedPerformance,
       genericVsAiComparison: {
@@ -365,7 +401,23 @@ export function CampaignBuilder({
     URL.revokeObjectURL(url);
   }
 
-  const activeContent = generated?.content[activeContentTab];
+  function updateGeneratedContent(value: string) {
+    setGenerated((current) => {
+      if (!current) {
+        return current;
+      }
+
+      return {
+        ...current,
+        content: {
+          ...current.content,
+          [activeContentTab]: value
+        }
+      };
+    });
+  }
+
+  const activeContent = generated?.content[activeContentTab] ?? "";
 
   return (
     <div className="space-y-6">
@@ -710,7 +762,7 @@ export function CampaignBuilder({
                 <p className="mt-2 text-lg font-semibold">{generated.hook}</p>
               </div>
               <div className="flex gap-2 overflow-x-auto rounded-2xl bg-white/10 p-1">
-                {generatedTabs.map((tab) => (
+                {visibleGeneratedTabs.map((tab) => (
                   <button
                     key={tab.key}
                     type="button"
@@ -722,14 +774,24 @@ export function CampaignBuilder({
                 ))}
               </div>
               <div className="rounded-3xl bg-white/12 p-5">
-                <div className="flex items-center gap-2">
-                  <MessageSquareText className="h-5 w-5 text-primary-foreground/75" />
-                  <p className="text-xs uppercase tracking-[0.18em] text-primary-foreground/70">
-                    {generatedTabs.find((tab) => tab.key === activeContentTab)?.label}
-                  </p>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <MessageSquareText className="h-5 w-5 text-primary-foreground/75" />
+                    <p className="text-xs uppercase tracking-[0.18em] text-primary-foreground/70">
+                      {generatedTabs.find((tab) => tab.key === activeContentTab)?.label}
+                    </p>
+                  </div>
+                  <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold text-primary-foreground/76">
+                    Editable
+                  </span>
                 </div>
                 <h3 className="mt-3 font-serif text-3xl">{generated.headline}</h3>
-                <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-primary-foreground/88">{activeContent}</p>
+                <Textarea
+                  value={activeContent}
+                  onChange={(event) => updateGeneratedContent(event.target.value)}
+                  className="mt-4 min-h-[260px] resize-y border-white/15 bg-white/10 text-primary-foreground placeholder:text-primary-foreground/45 focus-visible:ring-white/50"
+                  aria-label={`Edit ${generatedTabs.find((tab) => tab.key === activeContentTab)?.label ?? "generated content"}`}
+                />
                 <div className="mt-5 rounded-2xl border border-white/15 bg-white/8 p-4">
                   <p className="text-xs uppercase tracking-[0.18em] text-primary-foreground/70">Call to Action</p>
                   <p className="mt-2 text-sm text-primary-foreground">{generated.callToAction}</p>

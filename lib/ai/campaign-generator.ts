@@ -47,6 +47,17 @@ type PromptSet = {
   retailerScript: string;
 };
 
+type ContentKey = keyof GeneratedCampaign["content"];
+
+function contentKeyForChannel(channel?: string): ContentKey | null {
+  if (channel === "WhatsApp") return "whatsapp";
+  if (channel === "SMS") return "sms";
+  if (channel === "Voice") return "voiceScript";
+  if (channel === "Video") return "videoScript";
+  if (channel === "Image") return "imagePrompt";
+  return null;
+}
+
 function clamp(value: number, min = 0, max = 100) {
   return Math.max(min, Math.min(max, Math.round(value)));
 }
@@ -256,7 +267,7 @@ function expectedPerformance(context: GeneratorContext): GeneratedCampaign["expe
 }
 
 function orchestrateGeneration(context: GeneratorContext, prompts: PromptSet): GeneratedCampaign["content"] {
-  return {
+  const allContent = {
     whatsapp: generateWhatsAppContent(context, prompts.whatsapp),
     sms: generateSmsContent(context, prompts.sms),
     voiceScript: generateVoiceScript(context, prompts.voiceScript),
@@ -265,6 +276,22 @@ function orchestrateGeneration(context: GeneratorContext, prompts: PromptSet): G
     influencerScript: generateInfluencerScript(context, prompts.influencerScript),
     fieldRepScript: generateFieldRepScript(context, prompts.fieldRepScript),
     retailerScript: generateRetailerScript(context, prompts.retailerScript)
+  };
+  const selectedContentKey = contentKeyForChannel(context.channel);
+
+  if (!selectedContentKey) {
+    return allContent;
+  }
+
+  return {
+    whatsapp: selectedContentKey === "whatsapp" ? allContent.whatsapp : "",
+    sms: selectedContentKey === "sms" ? allContent.sms : "",
+    voiceScript: selectedContentKey === "voiceScript" ? allContent.voiceScript : "",
+    videoScript: selectedContentKey === "videoScript" ? allContent.videoScript : "",
+    imagePrompt: selectedContentKey === "imagePrompt" ? allContent.imagePrompt : "",
+    influencerScript: "",
+    fieldRepScript: "",
+    retailerScript: ""
   };
 }
 
@@ -277,6 +304,10 @@ export function generateCampaignContent(params: GeneratorContext): GeneratedCamp
   const compliance = runComplianceGuardrail(allGeneratedText, params.additionalInfo);
   const performance = expectedPerformance(params);
   const selectedChannel = channelLabel(params.channel);
+  const selectedContentKey = contentKeyForChannel(params.channel);
+  const generatedAssetSummary = selectedContentKey
+    ? `Created ${selectedChannel} content only.`
+    : "Created prompts for WhatsApp, SMS, voice, video, image, influencer, field rep, and retailer assets.";
 
   return {
     campaignBrief: prompts.campaignBrief,
@@ -293,8 +324,10 @@ export function generateCampaignContent(params: GeneratorContext): GeneratedCamp
     compliance,
     expectedPerformance: performance,
     chat: [
-      `Prompt Generator: Created prompts for WhatsApp, SMS, voice, video, image, influencer, field rep, and retailer assets.`,
-      `Agentic AI Orchestrator: Delegated prompts to eight rule-based generator functions.`,
+      `Prompt Generator: ${generatedAssetSummary}`,
+      selectedContentKey
+        ? `Agentic AI Orchestrator: Delegated generation to the ${selectedChannel} content function.`
+        : `Agentic AI Orchestrator: Delegated prompts to eight rule-based generator functions.`,
       `Generative AI Simulation: Built content from product, region, segment, channel, influencer, additional info, ecosystem trigger, and campaign history.`,
       `Compliance Guardrail: ${compliance.status}. ${compliance.notes.join(" ")}`
     ]
