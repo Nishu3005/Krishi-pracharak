@@ -267,7 +267,8 @@ def _generate_segment_content(seg: dict, promoter_desc: str | None = None, campa
                 ts = datetime.utcnow().strftime("%H%M%S")
                 fpath = poster_dir / f"{safe_name}_{seg_id_val}_{ts}.png"
                 fpath.write_bytes(img_bytes)
-                poster_file_path = str(fpath.resolve())
+                # Store relative path from DATA_DIR root so it resolves across environments
+                poster_file_path = str(fpath)
             except Exception:
                 poster_image_url = poster_raw_url  # keep as data URI on save failure
         else:
@@ -603,4 +604,4 @@ def _generate_local_poster(
     ts   = datetime.utcnow().strftime("%H%M%S")
     fpath = poster_dir / f"{safe}_{seg_id}_{ts}.png"
     img.save(str(fpath), "PNG")
-    return str(fpath.resolve())
+    return str(fpath)

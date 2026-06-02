@@ -184,62 +184,68 @@
     "territory_id": "TER_0001"
   },
   "REP_0003": {
-    "generated_at": "2026-05-20T16:28:15.044286",
-    "briefing_text": "**REP_0003 Territory Briefing – Week of Jan 15**\n\nPrioritize restocking Cruiser 350 FS this week—you're at critical depletion risk with only 6 weeks of inventory remaining. Follow up with orders on Actara, Axial, Movondo, Kavach, and Tilt (all ~8 weeks out) to prevent stockouts during peak season demand. You have 1 non-smartphone grower in territory requiring a personal visit; use that call to confirm their spring product needs and lock in orders before competitors do. Getting ahead on inventory now protects your margins and strengthens grower relationships when they're planning applications.",
+    "generated_at": "2026-06-02T09:28:55.308315",
+    "briefing_text": "**BRIEFING: REP_0003 | TER_0003 | Week of 02-JUN-2026**\n\nYou have 10 growers overdue for visits—all 86+ days out—creating significant stock and engagement risk across Varanasi. Prioritize Varanasi_T003 (138 days) and Varanasi_T001 (101 days) first to prevent lost sales and competitive inroads, then work through the remaining eight in visit-gap order. One grower in your territory relies entirely on in-person contact, so ensure at least one of your visits this week reaches that offline account. Plan a concentrated field week to close these gaps before inventory decisions and replanting cycles move forward without us.",
     "priority_actions": [
       {
-        "type": "restock_alert",
-        "sku": "Cruiser 350 FS",
-        "tehsil": "territory-wide",
-        "weeks_until_oos": 6,
-        "avg_stock": 51.5,
-        "trend_slope": -8.4,
+        "type": "visit_gap",
+        "tehsil": "Varanasi_T001",
+        "days_since_visit": 101,
         "rank": 1
       },
       {
-        "type": "restock_alert",
-        "sku": "Actara 25 WG",
-        "tehsil": "territory-wide",
-        "weeks_until_oos": 8,
-        "avg_stock": 304.8,
-        "trend_slope": -21.7,
+        "type": "visit_gap",
+        "tehsil": "Varanasi_T002",
+        "days_since_visit": 92,
         "rank": 2
       },
       {
-        "type": "restock_alert",
-        "sku": "Axial 50 EC",
-        "tehsil": "territory-wide",
-        "weeks_until_oos": 8,
-        "avg_stock": 111.5,
-        "trend_slope": -8.0,
+        "type": "visit_gap",
+        "tehsil": "Varanasi_T003",
+        "days_since_visit": 138,
         "rank": 3
       },
       {
-        "type": "restock_alert",
-        "sku": "Kavach 75 WP",
-        "tehsil": "territory-wide",
-        "weeks_until_oos": 8,
-        "avg_stock": 126.5,
-        "trend_slope": -12.4,
+        "type": "visit_gap",
+        "tehsil": "Varanasi_T004",
+        "days_since_visit": 89,
         "rank": 4
       },
       {
-        "type": "restock_alert",
-        "sku": "Movondo",
-        "tehsil": "territory-wide",
-        "weeks_until_oos": 8,
-        "avg_stock": 70.2,
-        "trend_slope": -5.5,
+        "type": "visit_gap",
+        "tehsil": "Varanasi_T005",
+        "days_since_visit": 87,
         "rank": 5
       },
       {
-        "type": "restock_alert",
-        "sku": "Tilt 250 EC",
-        "tehsil": "territory-wide",
-        "weeks_until_oos": 8,
-        "avg_stock": 379.8,
-        "trend_slope": -28.9,
+        "type": "visit_gap",
+        "tehsil": "Varanasi_T006",
+        "days_since_visit": 92,
         "rank": 6
+      },
+      {
+        "type": "visit_gap",
+        "tehsil": "Varanasi_T007",
+        "days_since_visit": 86,
+        "rank": 7
+      },
+      {
+        "type": "visit_gap",
+        "tehsil": "Varanasi_T008",
+        "days_since_visit": 100,
+        "rank": 8
+      },
+      {
+        "type": "visit_gap",
+        "tehsil": "Varanasi_T009",
+        "days_since_visit": 103,
+        "rank": 9
+      },
+      {
+        "type": "visit_gap",
+        "tehsil": "Varanasi_T010",
+        "days_since_visit": 86,
+        "rank": 10
       }
     ],
     "offline_growers_count": 1,
@@ -510,5 +516,73 @@
     ],
     "offline_growers_count": 2,
     "territory_id": "TER_0018"
+  },
+  "REP_0013": {
+    "generated_at": "2026-06-02T09:34:55.034291",
+    "briefing_text": "**WEEKLY BRIEFING – REP_0013**\n\nYou have 10 accounts overdue for visits (72–93 days), with Agra_T006 and T007 now at critical 93-day gaps—prioritize these two first to assess stock levels and prevent potential competitor engagement. Focus your week on the 6 non-smartphone growers (Agra_T001–T006) who depend entirely on personal contact; these visits are your only touchpoint for retention and product feedback. Batch your remaining visits geographically to maximize efficiency, and confirm crop stage and input needs during each stop to identify upsell opportunities. Document all interactions and stock status to flag any accounts at risk of churn.",
+    "priority_actions": [
+      {
+        "type": "visit_gap",
+        "tehsil": "Agra_T001",
+        "days_since_visit": 73,
+        "rank": 1
+      },
+      {
+        "type": "visit_gap",
+        "tehsil": "Agra_T002",
+        "days_since_visit": 72,
+        "rank": 2
+      },
+      {
+        "type": "visit_gap",
+        "tehsil": "Agra_T003",
+        "days_since_visit": 73,
+        "rank": 3
+      },
+      {
+        "type": "visit_gap",
+        "tehsil": "Agra_T004",
+        "days_since_visit": 77,
+        "rank": 4
+      },
+      {
+        "type": "visit_gap",
+        "tehsil": "Agra_T005",
+        "days_since_visit": 78,
+        "rank": 5
+      },
+      {
+        "type": "visit_gap",
+        "tehsil": "Agra_T006",
+        "days_since_visit": 93,
+        "rank": 6
+      },
+      {
+        "type": "visit_gap",
+        "tehsil": "Agra_T007",
+        "days_since_visit": 93,
+        "rank": 7
+      },
+      {
+        "type": "visit_gap",
+        "tehsil": "Agra_T008",
+        "days_since_visit": 72,
+        "rank": 8
+      },
+      {
+        "type": "visit_gap",
+        "tehsil": "Agra_T009",
+        "days_since_visit": 77,
+        "rank": 9
+      },
+      {
+        "type": "visit_gap",
+        "tehsil": "Agra_T010",
+        "days_since_visit": 74,
+        "rank": 10
+      }
+    ],
+    "offline_growers_count": 6,
+    "territory_id": "TER_0013"
   }
 }

@@ -16,7 +16,7 @@ import time as _time
 from agents.content_agent import run_content_generation_streaming, run_content_generation_parallel, describe_promoter
 from agents.rep_agent import run_rep_briefing
 from agents.targeting_agent import run_targeting
-from utils.campaign_store import attach_variants, attach_overview_cache, delete_campaign, load_saved_campaigns, save_plan
+from utils.campaign_store import attach_variants, attach_segment_variant, attach_overview_cache, delete_campaign, load_saved_campaigns, save_plan
 from utils.data_loader import load_digital_funnel, load_growers, load_reps, load_whatsapp
 from utils.ui_theme import apply_theme
 from utils.landing_theme import inject_landing_css, crop_img, IMG_HERO, IMG_PEOPLE, IMG_FARMER_RICE
@@ -415,7 +415,13 @@ def _sidebar_divider():
 
 # ── Overview visual helpers ────────────────────────────────────────────────────
 def _render_geo_map(state_grower_map: dict[str, int]):
-    active = {s: n for s, n in state_grower_map.items() if s in _STATE_COORDS}
+    # Normalize state names to match _STATE_COORDS keys (case-insensitive)
+    _coords_lower = {k.lower(): k for k in _STATE_COORDS}
+    active: dict[str, int] = {}
+    for s, n in state_grower_map.items():
+        canonical = _coords_lower.get(s.strip().lower())
+        if canonical:
+            active[canonical] = active.get(canonical, 0) + n
     if not active:
         st.caption("No mapped state coordinates available.")
         return
@@ -481,9 +487,10 @@ def _render_timeline(segments: list[dict], reference_date, campaign_end=None):
         labels={"Segment": ""},
     )
     fig.update_layout(**_layout_with(
+        title="",
         height=max(160, len(rows) * 30 + 60),
         xaxis_title=None, yaxis_title=None, showlegend=True,
-        legend=dict(orientation="h", y=1.08, x=0, font=dict(size=10)),
+        legend=dict(title_text="", orientation="h", y=1.08, x=0, font=dict(size=10)),
         margin=dict(l=10, r=10, t=40, b=10),
     ))
     fig.update_yaxes(autorange="reversed")
@@ -610,6 +617,27 @@ def _render_disease_alerts(segs: list[dict], campaign_path: str | None = None,
             with st.spinner("Generating AI agronomic advisory…"):
                 advisory = _disease_ai_overview(json.dumps(alerts))
         if advisory:
+            # Convert markdown headings to inline spans so global h1/h2 CSS
+            # doesn't render them dark-on-dark inside the dark advisory box.
+            def _advisory_to_html(text: str) -> str:
+                import re as _re
+                lines = []
+                for line in text.splitlines():
+                    stripped = line.lstrip("#").strip()
+                    if line.startswith("###"):
+                        lines.append(f'<span style="display:block;font-size:0.82rem;font-weight:700;color:#d4edda;margin:0.4rem 0 0.1rem;">{stripped}</span>')
+                    elif line.startswith("##"):
+                        lines.append(f'<span style="display:block;font-size:0.9rem;font-weight:700;color:#d4edda;margin:0.5rem 0 0.15rem;">{stripped}</span>')
+                    elif line.startswith("#"):
+                        lines.append(f'<span style="display:block;font-size:0.95rem;font-weight:700;color:#d4edda;margin:0.4rem 0 0.2rem;">{stripped}</span>')
+                    else:
+                        # Convert **bold** and *italic* to inline HTML
+                        converted = _re.sub(r'\*\*(.+?)\*\*', r'<strong style="color:#d4edda;">\1</strong>', line)
+                        converted = _re.sub(r'\*(.+?)\*', r'<em>\1</em>', converted)
+                        lines.append(converted)
+                return "<br>".join(lines)
+
+            advisory_html = _advisory_to_html(advisory)
             st.markdown(
                 f'<div style="background:linear-gradient(135deg,#0d2318 0%,#1a3d28 100%);'
                 f'border-radius:12px;padding:0.85rem 1.1rem;margin-bottom:1rem;'
@@ -617,7 +645,7 @@ def _render_disease_alerts(segs: list[dict], campaign_path: str | None = None,
                 f'<div style="font-size:0.68rem;font-weight:700;color:rgba(212,237,218,0.6);'
                 f'text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.35rem;">'
                 f'🤖 AI Agronomic Advisory</div>'
-                f'<div style="font-size:0.88rem;color:#d4edda;line-height:1.6;">{advisory}</div>'
+                f'<div style="font-size:0.88rem;color:#d4edda;line-height:1.6;">{advisory_html}</div>'
                 f'</div>',
                 unsafe_allow_html=True,
             )
@@ -1530,72 +1558,197 @@ def _render_streaming_segment(content: dict, seg: dict, seg_id: str) -> None:
     _render_poster_section(content, key=f"stream_{seg_id}")
 
 
+def _render_generate_controls(plan: dict, variants: dict | None,
+                              key: str, key_prefix: str) -> None:
+    """Render the generate / resume / regenerate button row.
+
+    States:
+      • No variants at all → single "Generate" button.
+      • Partial variants (some segments done, more pending) → success note with
+        count + "Resume" (primary) + "Regenerate from scratch" (secondary).
+      • All variants done → success note + "Regenerate" secondary button.
+    """
+    eligible = [s for s in plan.get("segments", []) if s.get("inventory_ok", True)]
+    n_total  = len(eligible)
+    done_ids  = set((variants or {}).get("variants", {}).keys())
+    n_done    = len(done_ids)
+    is_partial = variants is not None and 0 < n_done < n_total
+    is_full    = variants is not None and n_done >= n_total and n_total > 0
+
+    if is_full:
+        rc1, rc2 = st.columns([4, 1])
+        rc1.success(f"✓ Content generated for all {n_done} segments.")
+        if rc2.button("Regenerate", key=f"regen_{key}"):
+            # Clear from disk too so resume doesn't pick up old data
+            _cpath = st.session_state.get("current_campaign_path")
+            if _cpath and Path(_cpath).exists():
+                try:
+                    import json as _json
+                    _p = Path(_cpath)
+                    _d = _json.loads(_p.read_text(encoding="utf-8"))
+                    _d.pop("content_variants", None)
+                    _p.write_text(_json.dumps(_d, indent=2, ensure_ascii=False), encoding="utf-8")
+                except Exception:
+                    pass
+            st.session_state.content_variants = None
+            _run_streaming_generation(plan, key_prefix=f"{key_prefix}_regen")
+
+    elif is_partial:
+        st.markdown(
+            f'<div style="background:#fff8e1;border-left:4px solid {_AMBER};border-radius:0 10px 10px 0;'
+            f'padding:0.6rem 1rem;margin-bottom:0.5rem;">'
+            f'<span style="font-size:0.78rem;font-weight:700;color:{_AMBER};">⏸ Partial — {n_done}/{n_total} segments done</span>'
+            f'<div style="font-size:0.8rem;color:#555;margin-top:0.2rem;">Generation was interrupted. Resume to finish the remaining {n_total - n_done} segments.</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+        rc1, rc2 = st.columns([3, 1])
+        if rc1.button("▶ Resume Generation", type="primary",
+                      use_container_width=True, key=f"resume_{key}"):
+            _run_streaming_generation(plan, key_prefix=f"{key_prefix}_resume")
+        if rc2.button("Regenerate from scratch", key=f"regen_full_{key}",
+                      use_container_width=True):
+            _cpath = st.session_state.get("current_campaign_path")
+            if _cpath and Path(_cpath).exists():
+                try:
+                    import json as _json
+                    _p = Path(_cpath)
+                    _d = _json.loads(_p.read_text(encoding="utf-8"))
+                    _d.pop("content_variants", None)
+                    _p.write_text(_json.dumps(_d, indent=2, ensure_ascii=False), encoding="utf-8")
+                except Exception:
+                    pass
+            st.session_state.content_variants = None
+            _run_streaming_generation(plan, key_prefix=f"{key_prefix}_regen")
+
+    else:
+        if st.button("Generate Multilingual Content →", type="primary",
+                     use_container_width=True, key=f"gen_{key}"):
+            _run_streaming_generation(plan, key_prefix=key_prefix)
+
+
 def _run_streaming_generation(plan: dict, key_prefix: str) -> None:
     """
     Run content generation in parallel batches with live progress UI.
-    3 segments run simultaneously; UI updates after each batch completes.
+    Resumable: already-generated segments (from a prior interrupted run) are
+    loaded from the campaign JSON and skipped. Each new segment is persisted
+    immediately after generation so a mid-run interruption loses at most the
+    current in-flight batch.
     """
     BATCH_SIZE = 3
 
     promoter_b64 = st.session_state.get("promoter_image_b64")
+    campaign_path = st.session_state.get("current_campaign_path")
+
+    # ── Load already-completed variants from disk (resume support) ────────────
+    already_done: dict = {}
+    if campaign_path and Path(campaign_path).exists():
+        try:
+            import json as _json
+            _saved = _json.loads(Path(campaign_path).read_text(encoding="utf-8"))
+            already_done = (_saved.get("content_variants") or {}).get("variants", {})
+        except Exception:
+            already_done = {}
+
     eligible = [s for s in plan.get("segments", []) if s.get("inventory_ok", True)]
-    n = max(len(eligible), 1)
-    n_batches = (n + BATCH_SIZE - 1) // BATCH_SIZE
+    pending  = [s for s in eligible if s["segment_id"] not in already_done]
+    n_total  = len(eligible)
+    n_pending = len(pending)
+
+    # Timestamp used for the content_variants envelope
+    run_started_at = datetime.utcnow().isoformat()
 
     hdr_slot = st.empty()
     bar_col, eta_col = st.columns([5, 1])
     progress = bar_col.progress(0.0)
     eta_slot = eta_col.empty()
 
+    resume_msg = (
+        f" (resuming — {len(already_done)} already done, {n_pending} remaining)"
+        if already_done else ""
+    )
     hdr_slot.markdown(
         f'<div style="font-size:0.88rem;color:#2f7d4c;font-weight:600;">'
-        f'⚡ Generating {n} segments in parallel batches of {BATCH_SIZE}…</div>',
+        f'⚡ Generating {n_pending} segment{"s" if n_pending != 1 else ""} in parallel batches of {BATCH_SIZE}…{resume_msg}</div>',
         unsafe_allow_html=True,
     )
 
+    # Show already-done segments immediately so they're visible during resume
     out_area = st.container()
-    all_variants: dict = {}
-    done = 0
-    t0 = _time.monotonic()
-
-    for batch_results in run_content_generation_parallel(
-        plan, promoter_image_b64=promoter_b64, batch_size=BATCH_SIZE
-    ):
-        for seg_id, seg, content in batch_results:
-            done += 1
-            all_variants[seg_id] = content
-
-            crop    = seg.get("crop", "").title()
-            state   = seg.get("state", "")
-            lang    = content.get("language", "")
-            ch      = content.get("channel", "whatsapp")
-            ch_icon = "📱" if ch == "whatsapp" else "🤝"
-
-            with out_area:
+    if already_done:
+        seg_map = {s["segment_id"]: s for s in eligible}
+        with out_area:
+            for seg_id, content in already_done.items():
+                seg = seg_map.get(seg_id, {})
+                crop    = seg.get("crop", "").title()
+                state   = seg.get("state", "")
+                lang    = content.get("language", "")
+                ch      = content.get("channel", "whatsapp")
+                ch_icon = "📱" if ch == "whatsapp" else "🤝"
                 with st.expander(
-                    f"{ch_icon} {seg_id} · {crop} / {state} · {lang}",
+                    f"✓ {ch_icon} {seg_id} · {crop} / {state} · {lang}",
                     expanded=False,
                 ):
-                    _render_streaming_segment(content, seg, f"{key_prefix}_{seg_id}")
+                    _render_streaming_segment(content, seg, f"{key_prefix}_resume_{seg_id}")
 
-        progress.progress(done / n)
-        elapsed = _time.monotonic() - t0
-        batches_done = (done + BATCH_SIZE - 1) // BATCH_SIZE
-        batches_rem  = n_batches - batches_done
-        if batches_rem > 0 and batches_done > 0:
-            avg_batch = elapsed / batches_done
-            eta_slot.caption(f"~{avg_batch * batches_rem:.0f}s")
-        else:
-            eta_slot.empty()
+    all_variants: dict = dict(already_done)
+    done = len(already_done)
+    t0 = _time.monotonic()
 
-        hdr_slot.markdown(
-            f'<div style="font-size:0.88rem;color:#2f7d4c;font-weight:600;">'
-            f'⚡ {done}/{n} segments done ({elapsed:.0f}s elapsed)</div>',
-            unsafe_allow_html=True,
-        )
+    if pending:
+        n_batches = (n_pending + BATCH_SIZE - 1) // BATCH_SIZE
+        for batch_results in run_content_generation_parallel(
+            {**plan, "segments": pending},
+            promoter_image_b64=promoter_b64,
+            batch_size=BATCH_SIZE,
+        ):
+            for seg_id, seg, content in batch_results:
+                done += 1
+                all_variants[seg_id] = content
 
+                # ── Persist this segment immediately ──────────────────────────
+                if campaign_path and Path(campaign_path).exists():
+                    try:
+                        attach_segment_variant(
+                            Path(campaign_path), seg_id, content,
+                            generated_at=run_started_at,
+                        )
+                    except Exception:
+                        pass
+
+                crop    = seg.get("crop", "").title()
+                state   = seg.get("state", "")
+                lang    = content.get("language", "")
+                ch      = content.get("channel", "whatsapp")
+                ch_icon = "📱" if ch == "whatsapp" else "🤝"
+
+                with out_area:
+                    with st.expander(
+                        f"{ch_icon} {seg_id} · {crop} / {state} · {lang}",
+                        expanded=False,
+                    ):
+                        _render_streaming_segment(content, seg, f"{key_prefix}_{seg_id}")
+
+            progress.progress(done / max(n_total, 1))
+            elapsed = _time.monotonic() - t0
+            new_done = done - len(already_done)
+            batches_done = max((new_done + BATCH_SIZE - 1) // BATCH_SIZE, 1)
+            batches_rem  = n_batches - batches_done
+            if batches_rem > 0:
+                avg_batch = elapsed / batches_done
+                eta_slot.caption(f"~{avg_batch * batches_rem:.0f}s")
+            else:
+                eta_slot.empty()
+
+            hdr_slot.markdown(
+                f'<div style="font-size:0.88rem;color:#2f7d4c;font-weight:600;">'
+                f'⚡ {done}/{n_total} segments done ({elapsed:.0f}s elapsed)</div>',
+                unsafe_allow_html=True,
+            )
+
+    # ── Final: write consolidated variants to session + disk ──────────────────
     result = {
-        "generated_at": datetime.utcnow().isoformat(),
+        "generated_at": run_started_at,
         "total_segments": len(all_variants),
         "variants": all_variants,
     }
@@ -1603,7 +1756,7 @@ def _run_streaming_generation(plan: dict, key_prefix: str) -> None:
     _persist_variants(result)
 
     total_s = _time.monotonic() - t0
-    hdr_slot.success(f"✓ {len(all_variants)} segments generated in {total_s:.1f}s")
+    hdr_slot.success(f"✓ {len(all_variants)} segments complete in {total_s:.1f}s")
     progress.progress(1.0)
     eta_slot.empty()
     _time.sleep(1.0)
@@ -1618,16 +1771,34 @@ def _safe_html(text: str | None) -> str:
                 .replace(">", "&gt;").replace("\n", "<br>"))
 
 
+def _resolve_poster_path(fpath: str) -> Path | None:
+    """Resolve a stored poster path, trying multiple roots so old absolute and new relative paths both work."""
+    candidates = [
+        Path(fpath),
+        Path(__file__).parent.parent / fpath,
+        Path(__file__).parent.parent / "data" / "posters" / Path(fpath).name,
+    ]
+    for p in candidates:
+        try:
+            if p.exists():
+                return p
+        except Exception:
+            pass
+    return None
+
+
 def _poster_img_src(content: dict) -> str | None:
     """Return an <img src=...> value for the poster: data URI (from file) or plain URL."""
     fpath = content.get("poster_file_path")
-    if fpath and Path(fpath).exists():
-        try:
-            img_bytes = Path(fpath).read_bytes()
-            b64 = base64.b64encode(img_bytes).decode()
-            return f"data:image/png;base64,{b64}"
-        except Exception:
-            pass
+    if fpath:
+        resolved = _resolve_poster_path(fpath)
+        if resolved:
+            try:
+                img_bytes = resolved.read_bytes()
+                b64 = base64.b64encode(img_bytes).decode()
+                return f"data:image/png;base64,{b64}"
+            except Exception:
+                pass
     url = content.get("poster_image_url")
     if url:
         return url
@@ -1638,15 +1809,18 @@ def _render_poster_section(content: dict, key: str = "poster") -> None:
     """Render the campaign poster at a fixed width with a download button beside it."""
     poster_path = content.get("poster_file_path")
     poster_url  = content.get("poster_image_url")
-    has_file    = poster_path and Path(poster_path).exists()
+
+    # Resolve file using multi-root fallback (handles old absolute paths + new relative paths)
+    resolved_path: Path | None = _resolve_poster_path(poster_path) if poster_path else None
+    has_file = resolved_path is not None
 
     # Resolve image bytes (needed for download + st.image from URL)
     img_bytes: bytes | None = None
     display_src = None
     if has_file:
         try:
-            img_bytes   = Path(poster_path).read_bytes()
-            display_src = poster_path
+            img_bytes   = resolved_path.read_bytes()
+            display_src = str(resolved_path)
         except Exception:
             pass
     if not display_src and poster_url:
@@ -1668,7 +1842,7 @@ def _render_poster_section(content: dict, key: str = "poster") -> None:
         st.image(display_src, width=320)
     with btn_col:
         # Download button
-        fname = Path(poster_path).name if has_file else f"poster_{key}.png"
+        fname = resolved_path.name if has_file else f"poster_{key}.png"
         if img_bytes:
             st.download_button(
                 "⬇ Download",
@@ -3027,16 +3201,10 @@ elif any(c["id"] == view for c in digital):
             _render_content_scope(segs_plan)
             _render_promoter_uploader(key_prefix=f"promo_{view}")
 
-            if not variants:
-                if st.button("Generate Multilingual Content →", type="primary",
-                             use_container_width=True, key=f"gen_{view}"):
-                    _run_streaming_generation(plan, key_prefix=f"dig_{view}")
-            else:
-                rc1, rc2 = st.columns([4, 1])
-                rc1.success(f"Content generated for {len(variants.get('variants', {}))} segments.")
-                if rc2.button("Regenerate", key=f"regen_{view}"):
-                    st.session_state.content_variants = None
-                    _run_streaming_generation(plan, key_prefix=f"digr_{view}")
+            _render_generate_controls(
+                plan=plan, variants=variants,
+                key=view, key_prefix=f"dig_{view}",
+            )
 
         st.divider()
         _render_content_variants()
@@ -3385,22 +3553,14 @@ elif any(c["_id"] == view for c in saved_camps):
             existing_variants = _cv if _cv is not None else st.session_state.content_variants
             if existing_variants:
                 st.session_state.content_variants = existing_variants
-                rc1, rc2 = st.columns([4, 1])
-                rc1.success(f"Content generated for {len(existing_variants.get('variants', {}))} segments.")
-                if rc2.button("Regenerate", key=f"regen_saved_{c['_id']}"):
-                    st.session_state.content_variants = None
-                    _run_streaming_generation(
-                        st.session_state.targeting_plan,
-                        key_prefix=f"savedR_{c['_id']}",
-                    )
             else:
                 st.session_state.content_variants = None
-                if st.button("Generate Multilingual Content →", type="primary",
-                             use_container_width=True, key=f"gen_saved_{c['_id']}"):
-                    _run_streaming_generation(
-                        st.session_state.targeting_plan,
-                        key_prefix=f"saved_{c['_id']}",
-                    )
+            _render_generate_controls(
+                plan=st.session_state.targeting_plan,
+                variants=st.session_state.content_variants,
+                key=c["_id"],
+                key_prefix=f"saved_{c['_id']}",
+            )
 
             st.divider()
             _render_content_variants()
