@@ -17,8 +17,11 @@ function statusClass(status: string) {
   if (normalized.includes("ready") || normalized.includes("imported") || normalized.includes("valid")) {
     return "bg-primary/12 text-primary";
   }
-  if (normalized.includes("failed") || normalized.includes("invalid")) {
+  if (normalized.includes("failed") || normalized.includes("invalid") || normalized.includes("error")) {
     return "bg-red-100 text-red-800";
+  }
+  if (normalized.includes("review") || normalized.includes("warning")) {
+    return "bg-amber-100 text-amber-950";
   }
   return "bg-secondary text-secondary-foreground";
 }
@@ -36,6 +39,15 @@ function parseJson<T>(value: string | null, fallback: T): T {
 
 function mappedPreview(mappedJson: string) {
   const mapped = parseJson<Record<string, unknown>>(mappedJson, {});
+  if (mapped.entities && typeof mapped.entities === "object" && !Array.isArray(mapped.entities)) {
+    return Object.entries(mapped.entities as Record<string, unknown[]>)
+      .filter(([, rows]) => Array.isArray(rows) && rows.length)
+      .slice(0, 6)
+      .map(([table, rows]) => [
+        table,
+        `${Array.isArray(rows) ? rows.length : 0} record(s): ${JSON.stringify(Array.isArray(rows) ? rows[0] : rows).slice(0, 120)}`
+      ] as [string, string]);
+  }
   return Object.entries(mapped).slice(0, 6);
 }
 
@@ -49,15 +61,22 @@ export default async function DataPage({
     getIngestionJobReview(searchParams.jobId)
   ]);
 
-  const invalidRecords = activeJob?.stagingRecords.filter((record) => record.validationStatus !== "valid") ?? [];
+  const apiConfigured = Boolean(process.env.TOKENROUTER_API_KEY);
+  const aiProvider = process.env.AI_PROVIDER || "tokenrouter";
+  const aiModel = process.env.OPENAI_MODEL || "auto:balance";
+  const warningRecords = activeJob?.stagingRecords.filter((record) => record.validationStatus === "warning") ?? [];
+  const errorRecords = activeJob?.stagingRecords.filter((record) => record.validationStatus === "error") ?? [];
   const validRecords = activeJob?.stagingRecords.filter((record) => record.validationStatus === "valid") ?? [];
+  const dataQualityWarnings = parseJson<string[]>(activeJob?.dataQualityWarningsJson ?? null, []);
+  const suggestedFixes = parseJson<string[]>(activeJob?.suggestedFixesJson ?? null, []);
+  const failureReport = parseJson<Array<{ error?: string }>>(activeJob?.errorReportJson ?? null, []);
 
   return (
     <div>
       <PageHeader
         eyebrow="Stage 1"
         title="CSV Upload Workflow"
-        description="Upload CSV files into staging, review AI-like type detection and mappings, validate rows, preview mapped data, then approve the final import."
+        description="Upload CSV files into staging, review TokenRouter mixed-entity extraction, mappings, validations, and approve the final import."
         badge="Staged import pipeline"
       />
 
@@ -77,12 +96,12 @@ export default async function DataPage({
             <div>
               <CardTitle>Upload CSV</CardTitle>
               <CardDescription className="mt-1">
-                Choose a known file type or let the rule engine auto-detect from column names.
+                Choose a hint or let TokenRouter extract farmers, regions, languages, products, influencers, and campaign history from the full CSV.
               </CardDescription>
             </div>
           </div>
           <div className="mt-6">
-            <SurveyUploadForm />
+            <SurveyUploadForm provider={aiProvider} model={aiModel} apiConfigured={apiConfigured} />
           </div>
         </Card>
 
@@ -137,7 +156,7 @@ export default async function DataPage({
             <Card className="bg-primary text-primary-foreground">
               <CardTitle className="text-primary-foreground">Detected Data Type</CardTitle>
               <CardDescription className="mt-1 text-primary-foreground/78">
-                The selected parser is based on requested type unless auto-detect was chosen.
+                TokenRouter extracts all supported entities from each row. No local AI fallback is used.
               </CardDescription>
               <div className="mt-6 grid gap-4 text-sm">
                 <div className="rounded-2xl bg-white/10 p-4">
@@ -154,6 +173,16 @@ export default async function DataPage({
                     <p className="mt-1 font-semibold">{activeJob.detectedCsvType}</p>
                   </div>
                 </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="rounded-2xl bg-white/10 p-4">
+                    <p className="text-primary-foreground/64">AI Provider</p>
+                    <p className="mt-1 font-semibold">{activeJob.aiProvider || "tokenrouter"}</p>
+                  </div>
+                  <div className="rounded-2xl bg-white/10 p-4">
+                    <p className="text-primary-foreground/64">Model</p>
+                    <p className="mt-1 font-semibold">{activeJob.aiModel || aiModel}</p>
+                  </div>
+                </div>
                 <div className="grid gap-4 md:grid-cols-3">
                   <div className="rounded-2xl bg-white/10 p-4">
                     <p className="text-primary-foreground/64">AI Confidence</p>
@@ -164,8 +193,12 @@ export default async function DataPage({
                     <p className="mt-1 font-semibold">{activeJob.validRows}</p>
                   </div>
                   <div className="rounded-2xl bg-white/10 p-4">
-                    <p className="text-primary-foreground/64">Invalid</p>
-                    <p className="mt-1 font-semibold">{activeJob.invalidRows}</p>
+                    <p className="text-primary-foreground/64">Warnings</p>
+                    <p className="mt-1 font-semibold">{warningRecords.length}</p>
+                  </div>
+                  <div className="rounded-2xl bg-white/10 p-4 md:col-span-3">
+                    <p className="text-primary-foreground/64">AI Reasoning Summary</p>
+                    <p className="mt-1 font-semibold">{activeJob.reasoningSummary || "No reasoning summary available."}</p>
                   </div>
                 </div>
               </div>
@@ -207,7 +240,7 @@ export default async function DataPage({
                 <div>
                   <CardTitle>Validation Report</CardTitle>
                   <CardDescription className="mt-1">
-                    Checks include missing farmer names, missing villages, invalid crop or language, duplicate farmers, products without names, influencer region gaps, and campaign history missing metrics.
+                    TokenRouter row validation results. Error rows are never imported; warning rows require explicit confirmation.
                   </CardDescription>
                 </div>
                 <Badge className={statusClass(activeJob.status)}>{activeJob.status.replaceAll("_", " ")}</Badge>
@@ -220,42 +253,89 @@ export default async function DataPage({
                   <p className="text-sm text-foreground/58">Valid staged rows</p>
                 </div>
                 <div className="rounded-2xl border border-border bg-muted/35 p-4">
-                  <XCircle className="h-5 w-5 text-red-700" />
-                  <p className="mt-3 text-3xl font-semibold">{invalidRecords.length}</p>
-                  <p className="text-sm text-foreground/58">Rows needing correction</p>
+                  <FileSearch className="h-5 w-5 text-amber-700" />
+                  <p className="mt-3 text-3xl font-semibold">{warningRecords.length}</p>
+                  <p className="text-sm text-foreground/58">Rows with warnings</p>
                 </div>
                 <div className="rounded-2xl border border-border bg-muted/35 p-4">
-                  <FileSearch className="h-5 w-5 text-foreground/65" />
-                  <p className="mt-3 text-3xl font-semibold">{activeJob.totalRows}</p>
-                  <p className="text-sm text-foreground/58">Total rows parsed</p>
+                  <XCircle className="h-5 w-5 text-red-700" />
+                  <p className="mt-3 text-3xl font-semibold">{errorRecords.length}</p>
+                  <p className="text-sm text-foreground/58">Rows with errors</p>
                 </div>
               </div>
 
               <div className="mt-5 space-y-3">
-                {invalidRecords.slice(0, 5).map((record) => {
-                  const errors = parseJson<string[]>(record.errorsJson, []);
+                {activeJob.validationErrors.slice(0, 8).map((issue) => {
                   return (
-                    <div key={record.id} className="rounded-2xl border border-red-100 bg-red-50/70 p-4 text-sm">
-                      <p className="font-semibold text-red-900">Row {record.rowNumber}</p>
-                      <p className="mt-1 text-red-800">{errors.join(", ")}</p>
+                    <div key={issue.id} className={`rounded-2xl border p-4 text-sm ${issue.severity === "error" ? "border-red-100 bg-red-50/70" : "border-amber-100 bg-amber-50/70"}`}>
+                      <p className={issue.severity === "error" ? "font-semibold text-red-900" : "font-semibold text-amber-950"}>
+                        Row {issue.rowNumber} {issue.columnName ? `• ${issue.columnName}` : ""} • {issue.severity}
+                      </p>
+                      <p className={issue.severity === "error" ? "mt-1 text-red-800" : "mt-1 text-amber-900"}>{issue.errorMessage}</p>
+                      {issue.suggestedFix ? <p className="mt-1 text-foreground/62">Fix: {issue.suggestedFix}</p> : null}
                     </div>
                   );
                 })}
-                {!invalidRecords.length ? (
+                {!activeJob.validationErrors.length ? (
                   <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4 text-sm text-primary">
                     No validation blockers found. Valid rows can be approved for import.
                   </div>
                 ) : null}
+                {activeJob.status === "failed" && failureReport.length ? (
+                  <div className="rounded-2xl border border-red-100 bg-red-50/70 p-4 text-sm text-red-800">
+                    {failureReport.map((entry, index) => (
+                      <p key={`${entry.error}-${index}`}>{entry.error || "TokenRouter workflow failed."}</p>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="mt-5 grid gap-3 md:grid-cols-2">
+                <div className="rounded-xl border border-border bg-muted/25 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-foreground/45">Data Quality Warnings</p>
+                  <ul className="mt-2 space-y-1 text-sm text-foreground/68">
+                    {(dataQualityWarnings.length ? dataQualityWarnings : ["No data quality warnings."]).map((entry) => (
+                      <li key={entry}>{entry}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="rounded-xl border border-border bg-muted/25 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-foreground/45">Suggested Fixes</p>
+                  <ul className="mt-2 space-y-1 text-sm text-foreground/68">
+                    {(suggestedFixes.length ? suggestedFixes : ["No suggested fixes."]).map((entry) => (
+                      <li key={entry}>{entry}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="rounded-xl border border-border bg-muted/25 p-4 md:col-span-2">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-foreground/45">Import Recommendation</p>
+                  <p className="mt-2 text-sm font-semibold">{activeJob.importRecommendation || "N/A"}</p>
+                </div>
               </div>
 
               <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                 <form action={`/api/ingestion/jobs/${activeJob.id}/approve`} method="post" className="sm:flex-1">
+                  {warningRecords.length ? (
+                    <label className="mb-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+                      <input name="confirmWarnings" type="checkbox" className="mt-1" required />
+                      <span>I reviewed warning rows and approve importing them with valid rows.</span>
+                    </label>
+                  ) : null}
                   <button
                     type="submit"
-                    disabled={activeJob.status === "imported" || validRecords.length === 0}
+                    disabled={activeJob.status === "imported" || activeJob.status === "failed" || activeJob.status === "rejected" || (validRecords.length === 0 && warningRecords.length === 0)}
                     className="inline-flex w-full items-center justify-center rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground disabled:pointer-events-none disabled:opacity-45"
                   >
                     Approve Import
+                  </button>
+                </form>
+                <form action={`/api/ingestion/jobs/${activeJob.id}/reject`} method="post" className="sm:flex-1">
+                  <button
+                    type="submit"
+                    disabled={activeJob.status === "imported" || activeJob.status === "rejected"}
+                    className="inline-flex w-full items-center justify-center rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800 disabled:pointer-events-none disabled:opacity-45"
+                  >
+                    Reject Upload
                   </button>
                 </form>
                 <a
@@ -270,7 +350,7 @@ export default async function DataPage({
 
             <Card className="bg-white/88">
               <CardTitle>Preview Mapped Rows</CardTitle>
-              <CardDescription className="mt-1">Showing staged rows exactly as they will be interpreted on approval.</CardDescription>
+              <CardDescription className="mt-1">Showing normalized staged row entities exactly as they will be interpreted on approval.</CardDescription>
               <div className="mt-6 space-y-3">
                 {activeJob.stagingRecords.slice(0, 8).map((record) => (
                   <div key={record.id} className="rounded-2xl border border-border bg-muted/35 p-4">

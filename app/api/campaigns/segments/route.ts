@@ -1,7 +1,7 @@
 import type { Crop, Region } from "@prisma/client";
 import { NextResponse } from "next/server";
 
-import { buildSegments } from "@/lib/ai/segmentation";
+import { generateSegmentsWithTokenRouter } from "@/lib/ai/tokenrouter-segmentation";
 import { prisma } from "@/lib/prisma";
 import { segmentationSchema } from "@/lib/validators";
 
@@ -246,7 +246,7 @@ export async function POST(request: Request) {
 
   const regionIds = regions.map((region) => region.id);
   const scopedRegionWhere = regionIds.length ? { in: regionIds } : undefined;
-  const [ecosystemConditions, outbreaks, campaigns] = await Promise.all([
+  const [ecosystemConditions, outbreaks, campaigns, languageDistribution] = await Promise.all([
     prisma.ecosystemCondition.findMany({
       where: { regionId: scopedRegionWhere },
       orderBy: { observationDate: "desc" },
@@ -273,20 +273,71 @@ export async function POST(request: Request) {
       },
       orderBy: { id: "desc" },
       take: 12
+    }),
+    prisma.language.findMany({
+      include: {
+        farmers: {
+          where: {
+            regionId: selectedRegion?.id
+          },
+          select: { id: true }
+        }
+      },
+      orderBy: { name: "asc" },
+      take: 20
     })
   ]);
 
-  const segments = buildSegments({
+  const databaseContext = {
     product,
-    region: selectedRegion,
-    regions,
+    productCropFits: product.cropFits,
     crops,
+    regions,
     farmers,
+    farmerAssets: farmers.flatMap((farmer) => farmer.assets),
+    farmingPractices: farmers.flatMap((farmer) => farmer.farmingPractices),
     ecosystemConditions,
     outbreaks,
-    campaigns,
-    additionalInfo: parsed.data.additionalInfo
-  });
+    languageDistribution: languageDistribution.map((language) => ({
+      language: language.name,
+      farmerCount: language.farmers.length
+    })),
+    previousCampaigns: campaigns.map((campaign) => ({
+      id: campaign.id,
+      name: campaign.name,
+      channel: campaign.channel,
+      status: campaign.status,
+      targetCount: campaign.targets.length,
+      engagedCount: campaign.targets.filter((target) => target.response?.openedFlag || target.response?.clickedFlag || target.response?.repliedFlag).length,
+      inquiryCount: campaign.targets.filter((target) => target.response?.inquiryFlag).length,
+      purchaseCount: campaign.targets.filter((target) => target.response?.purchaseFlag).length
+    })),
+    dynamicContext: {
+      mockObservationDate: MOCK_OBSERVATION_DATE,
+      source: "Existing mock weather and outbreak enrichers"
+    }
+  };
 
-  return NextResponse.json({ segments });
+  try {
+    const generated = await generateSegmentsWithTokenRouter({
+      selectedProduct: product,
+      selectedRegion,
+      additionalInfo: parsed.data.additionalInfo,
+      databaseContext
+    });
+
+    return NextResponse.json({
+      provider: generated.metadata.provider,
+      model: generated.metadata.model,
+      overallStrategy: generated.overallStrategy,
+      dataGaps: generated.dataGaps,
+      assumptions: generated.assumptions,
+      segments: generated.segments
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "TokenRouter segmentation failed." },
+      { status: 502 }
+    );
+  }
 }

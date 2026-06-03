@@ -195,6 +195,9 @@ export async function getIngestionJobReview(jobId?: string) {
       stagingRecords: {
         orderBy: { rowNumber: "asc" },
         take: 20
+      },
+      validationErrors: {
+        orderBy: [{ rowNumber: "asc" }, { severity: "asc" }]
       }
     }
   });

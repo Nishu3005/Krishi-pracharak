@@ -1,6 +1,10 @@
 import type { PrismaClient } from "@prisma/client";
 import Papa from "papaparse";
 
+// Deprecated: retained for reference only. Active CSV AI workflows use
+// TokenRouter via lib/ai/tokenrouter-csv-ingestion.ts and must not fall back
+// to this local rule-based implementation.
+
 export type CsvType = "farmer survey" | "product data" | "influencer data" | "campaign history" | "unknown";
 
 export type ColumnMapping = {

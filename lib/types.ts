@@ -12,6 +12,8 @@ export type Segment = {
   priorityScore: number;
   dataConfidenceScore: number;
   whyCreated: string;
+  whyThisSegment?: string[];
+  recommendedNextAction?: string;
   traits: string[];
   triggers: string[];
   recommendedTone: string;

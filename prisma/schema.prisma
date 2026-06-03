@@ -118,13 +118,20 @@ model DataIngestionJob {
   validRows        Int       @default(0) @map("valid_rows")
   invalidRows      Int       @default(0) @map("invalid_rows")
   aiConfidence     Decimal?  @map("ai_confidence")
+  aiProvider        String?   @map("ai_provider")
+  aiModel           String?   @map("ai_model")
+  reasoningSummary  String?   @map("reasoning_summary")
+  dataQualityWarningsJson String? @map("data_quality_warnings_json")
+  suggestedFixesJson       String? @map("suggested_fixes_json")
+  importRecommendation     String? @map("import_recommendation")
   errorReportJson  String?   @map("error_report_json")
   approvedAt       DateTime? @map("approved_at")
   createdAt        DateTime  @default(now()) @map("created_at")
 
-  uploadedFile   UploadedFile    @relation(fields: [uploadedFileId], references: [id])
-  schemaMappings SchemaMapping[]
-  stagingRecords StagingRecord[]
+  uploadedFile     UploadedFile      @relation(fields: [uploadedFileId], references: [id])
+  schemaMappings   SchemaMapping[]
+  stagingRecords   StagingRecord[]
+  validationErrors ValidationError[]
 
   @@map("data_ingestion_jobs")
 }
@@ -155,9 +162,42 @@ model StagingRecord {
   aiConfidence     Decimal? @map("ai_confidence")
   importedFlag     Boolean  @default(false) @map("imported_flag")
 
-  job DataIngestionJob @relation(fields: [jobId], references: [id])
+  job              DataIngestionJob @relation(fields: [jobId], references: [id])
+  validationErrors ValidationError[]
 
   @@map("staging_records")
+}
+
+model ValidationError {
+  id             Int      @id @default(autoincrement()) @map("validation_error_id")
+  jobId          Int      @map("ingestion_job_id")
+  stagingRecordId Int?    @map("staging_record_id")
+  rowNumber      Int      @map("row_number")
+  columnName     String?  @map("column_name")
+  errorType      String   @map("error_type")
+  severity       String
+  errorMessage   String   @map("error_message")
+  suggestedFix   String?  @map("suggested_fix")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  job           DataIngestionJob @relation(fields: [jobId], references: [id])
+  stagingRecord StagingRecord?   @relation(fields: [stagingRecordId], references: [id])
+
+  @@map("validation_errors")
+}
+
+model AiGenerationLog {
+  id            Int      @id @default(autoincrement()) @map("ai_generation_log_id")
+  feature       String
+  provider      String
+  model         String
+  inputSummary  String   @map("input_summary")
+  outputSummary String?  @map("output_summary")
+  status        String
+  errorMessage  String?  @map("error_message")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@map("ai_generation_logs")
 }
 
 model DataHealthIssue {

@@ -16,6 +16,10 @@ import type {
 
 import type { Segment } from "@/lib/types";
 
+// Deprecated: retained for reference only. Active farmer segment generation
+// uses TokenRouter via lib/ai/tokenrouter-segmentation.ts and must not fall
+// back to this local rule-based implementation.
+
 const DEMO_CURRENT_DATE = new Date("2026-05-30T00:00:00.000Z");
 
 type ProductWithFits = Product & {

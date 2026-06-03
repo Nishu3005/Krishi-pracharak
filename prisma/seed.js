@@ -4,6 +4,8 @@ const prisma = new PrismaClient();
 
 async function main() {
   await prisma.influencerPerformance.deleteMany();
+  await prisma.aiGenerationLog.deleteMany();
+  await prisma.validationError.deleteMany();
   await prisma.stagingRecord.deleteMany();
   await prisma.schemaMapping.deleteMany();
   await prisma.dataIngestionJob.deleteMany();

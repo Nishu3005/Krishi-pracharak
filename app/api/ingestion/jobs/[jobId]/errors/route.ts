@@ -13,19 +13,26 @@ export async function GET(
     return NextResponse.json({ error: "Invalid job." }, { status: 400 });
   }
 
-  const records = await prisma.stagingRecord.findMany({
-    where: {
-      jobId,
-      validationStatus: "invalid"
-    },
-    orderBy: { rowNumber: "asc" }
+  const issues = await prisma.validationError.findMany({
+    where: { jobId },
+    orderBy: [{ rowNumber: "asc" }, { severity: "asc" }]
   });
 
-  const reportRows = records.map((record) => ({
-    rowNumber: record.rowNumber,
-    errors: record.errorsJson ? JSON.parse(record.errorsJson).join("; ") : "",
-    rawJson: record.rawJson,
-    mappedJson: record.mappedJson
+  const records = await prisma.stagingRecord.findMany({
+    where: { jobId },
+    orderBy: { rowNumber: "asc" }
+  });
+  const recordByRow = new Map(records.map((record) => [record.rowNumber, record]));
+
+  const reportRows = issues.map((issue) => ({
+    rowNumber: issue.rowNumber,
+    columnName: issue.columnName || "",
+    severity: issue.severity,
+    errorType: issue.errorType,
+    errorMessage: issue.errorMessage,
+    suggestedFix: issue.suggestedFix || "",
+    rawJson: recordByRow.get(issue.rowNumber)?.rawJson || "",
+    mappedJson: recordByRow.get(issue.rowNumber)?.mappedJson || ""
   }));
 
   const csv = Papa.unparse(reportRows);

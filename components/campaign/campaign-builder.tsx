@@ -42,6 +42,15 @@ type SegmentRequest = {
   additionalInfo: string;
 };
 
+type SegmentResponse = {
+  provider: string;
+  model: string;
+  overallStrategy: string;
+  dataGaps: string[];
+  assumptions: string[];
+  segments: Segment[];
+};
+
 const generatedTabs = [
   { key: "whatsapp", label: "WhatsApp" },
   { key: "sms", label: "SMS" },
@@ -112,6 +121,7 @@ export function CampaignBuilder({
   const [influencerId, setInfluencerId] = useState("");
   const [region, setRegion] = useState("");
   const [segments, setSegments] = useState<Segment[]>([]);
+  const [segmentMetadata, setSegmentMetadata] = useState<Omit<SegmentResponse, "segments"> | null>(null);
   const [selectedSegment, setSelectedSegment] = useState<string>("");
   const [generated, setGenerated] = useState<GeneratedCampaign | null>(null);
   const [generatedChannel, setGeneratedChannel] = useState("");
@@ -171,11 +181,15 @@ export function CampaignBuilder({
     });
 
     if (!response.ok) {
-      throw new Error("Unable to create segments.");
+      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+      throw new Error(payload?.error || "Unable to create segments.");
     }
 
-    const payload = (await response.json()) as { segments: Segment[] };
-    return limit ? payload.segments.slice(0, limit) : payload.segments;
+    const payload = (await response.json()) as SegmentResponse;
+    return {
+      ...payload,
+      segments: limit ? payload.segments.slice(0, limit) : payload.segments
+    };
   }
 
   async function createSegments() {
@@ -183,13 +197,22 @@ export function CampaignBuilder({
     setError("");
     setGenerated(null);
     setGeneratedChannel("");
+    setSegmentMetadata(null);
     try {
-      const nextSegments = await requestSegments({
+      const payload = await requestSegments({
         productId,
         region,
         channel,
         influencerId,
         additionalInfo
+      });
+      const nextSegments = payload.segments;
+      setSegmentMetadata({
+        provider: payload.provider,
+        model: payload.model,
+        overallStrategy: payload.overallStrategy,
+        dataGaps: payload.dataGaps,
+        assumptions: payload.assumptions
       });
       setSegments(nextSegments);
       setSelectedSegment(nextSegments[0]?.name ?? "");
@@ -220,6 +243,7 @@ export function CampaignBuilder({
     setError("");
     setGenerated(null);
     setGeneratedChannel("");
+    setSegmentMetadata(null);
     setProductId(demoRequest.productId);
     setRegion(demoRequest.region);
     setChannel(demoRequest.channel);
@@ -227,7 +251,15 @@ export function CampaignBuilder({
     setAdditionalInfo(demoRequest.additionalInfo);
 
     try {
-      const nextSegments = await requestSegments(demoRequest, 3);
+      const payload = await requestSegments(demoRequest, 3);
+      const nextSegments = payload.segments;
+      setSegmentMetadata({
+        provider: payload.provider,
+        model: payload.model,
+        overallStrategy: payload.overallStrategy,
+        dataGaps: payload.dataGaps,
+        assumptions: payload.assumptions
+      });
       setSegments(nextSegments);
       setSelectedSegment(nextSegments[0]?.name ?? "");
       setActivePane("chat");
@@ -511,6 +543,39 @@ export function CampaignBuilder({
 
           {error ? <p className="mt-4 text-sm font-medium text-red-700">{error}</p> : null}
 
+          {segmentMetadata ? (
+            <div className="mt-5 grid gap-3 rounded-2xl border border-primary/15 bg-primary/5 p-4 text-sm md:grid-cols-2">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/70">AI Provider</p>
+                <p className="mt-1 font-semibold">{segmentMetadata.provider}</p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/70">Model Used</p>
+                <p className="mt-1 font-semibold">{segmentMetadata.model}</p>
+              </div>
+              <div className="md:col-span-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/70">Overall Strategy</p>
+                <p className="mt-1 leading-6 text-foreground/72">{segmentMetadata.overallStrategy}</p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/70">Data Gaps</p>
+                <ul className="mt-1 space-y-1 text-foreground/68">
+                  {(segmentMetadata.dataGaps.length ? segmentMetadata.dataGaps : ["No major data gaps returned."]).map((entry) => (
+                    <li key={entry}>{entry}</li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/70">Assumptions</p>
+                <ul className="mt-1 space-y-1 text-foreground/68">
+                  {(segmentMetadata.assumptions.length ? segmentMetadata.assumptions : ["No assumptions returned."]).map((entry) => (
+                    <li key={entry}>{entry}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          ) : null}
+
           <div className="mt-6 grid gap-4">
             {segments.length === 0 ? (
               [0, 1, 2].map((index) => (
@@ -590,8 +655,23 @@ export function CampaignBuilder({
 
                   <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/70">Why this segment?</p>
-                    <p className="mt-2 text-sm leading-6 text-foreground/72">{segment.whyCreated}</p>
+                    {segment.whyThisSegment?.length ? (
+                      <ul className="mt-2 space-y-1 text-sm leading-6 text-foreground/72">
+                        {segment.whyThisSegment.map((reason) => (
+                          <li key={reason}>{reason}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="mt-2 text-sm leading-6 text-foreground/72">{segment.whyCreated}</p>
+                    )}
                   </div>
+
+                  {segment.recommendedNextAction ? (
+                    <div className="mt-4 rounded-xl border border-border bg-muted/25 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-foreground/45">Recommended Next Action</p>
+                      <p className="mt-2 text-sm leading-6 text-foreground/72">{segment.recommendedNextAction}</p>
+                    </div>
+                  ) : null}
 
                   {segment.scoreBreakdown || segment.dataConfidenceBreakdown ? (
                     <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -665,7 +745,7 @@ export function CampaignBuilder({
             <CardTitle className="text-primary-foreground">Campaign Assistant</CardTitle>
           </div>
           <CardDescription className="mt-1 text-primary-foreground/78">
-            Database-backed simulated responses and generated campaign outputs.
+            Database-backed responses and generated campaign outputs.
           </CardDescription>
 
           <div className="mt-5 grid grid-cols-2 gap-2 rounded-2xl bg-white/10 p-1">

@@ -63,6 +63,8 @@ export const generationSchema = segmentationSchema.extend({
     priorityScore: z.number().optional(),
     dataConfidenceScore: z.number().optional(),
     whyCreated: z.string().optional(),
+    whyThisSegment: z.array(z.string()).optional(),
+    recommendedNextAction: z.string().optional(),
     traits: z.array(z.string()),
     triggers: z.array(z.string()),
     recommendedTone: z.string()
